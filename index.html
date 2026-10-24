@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#090711">
+  <meta name="description" content="七曜牌局：七子连珠与卡牌术式结合的像素风策略游戏。">
+  <title>七曜牌局 · SEVENFOLD</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="bg-layer" aria-hidden="true">
+      <div class="bg-stars" id="bgStars"></div>
+      <div class="bg-grid"></div>
+      <div class="bg-glow bg-glow--a"></div>
+      <div class="bg-glow bg-glow--b"></div>
+      <div class="scanlines"></div>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-sigil" aria-hidden="true">✦</span>
+        <div class="brand-text">
+          <strong>七曜牌局</strong>
+          <span>SEVENFOLD</span>
+        </div>
+      </div>
+
+      <div class="turn-hud" id="turnHud">
+        <span class="turn-round" id="roundLabel">ROUND 01</span>
+        <span class="turn-badge" id="turnBadge"><i></i>你的回合</span>
+      </div>
+
+      <nav class="top-actions" aria-label="游戏菜单">
+        <button class="pixel-btn pixel-btn--ghost" id="helpBtn" type="button">玩法</button>
+        <button class="pixel-btn pixel-btn--ghost" id="codexBtn" type="button">图鉴</button>
+        <button class="icon-btn" id="soundBtn" type="button" aria-label="切换音效" aria-pressed="true" title="音效开关">
+          <span class="sound-on">♪</span><span class="sound-off">×</span>
+        </button>
+      </nav>
+    </header>
+
+    <main class="game-grid" id="gameGrid">
+      <aside class="panel rival-panel" aria-label="对手信息">
+        <div class="panel-corners" aria-hidden="true"></div>
+        <div class="rival-head">
+          <div class="avatar avatar--ai" id="aiAvatar" aria-hidden="true"></div>
+          <div>
+            <p class="eyebrow">后手 · 弈者</p>
+            <h2 class="fighter-name">墨鸦</h2>
+            <p class="fighter-sub">THE CROW</p>
+          </div>
+        </div>
+
+        <div class="goal-box">
+          <span class="goal-label">胜利条件</span>
+          <strong id="aiGoal">七子连珠</strong>
+          <span class="goal-pips" id="aiGoalPips"></span>
+        </div>
+
+        <div class="rival-stats">
+          <div class="stat">
+            <span class="stat-label">手牌</span>
+            <strong id="aiHandCount">5</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">牌库</span>
+            <strong id="aiDeckCount">21</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">暗牌</span>
+            <strong class="accent-violet" id="aiSecretCount">0</strong>
+          </div>
+        </div>
+
+        <div class="secret-rail">
+          <div class="rail-title"><span>墨鸦的暗牌</span><span class="rail-line"></span></div>
+          <div class="secret-slots" id="aiSecrets">
+            <span class="empty-note">尚无可疑气息</span>
+          </div>
+        </div>
+
+        <div class="aura-line" id="aiAura" hidden>
+          <span class="aura-icon">◈</span>
+          <span id="aiAuraText"></span>
+        </div>
+
+        <div class="boss-line" id="bossLine" hidden>
+          <span class="boss-tag">权能</span>
+          <span id="bossSkillText"></span>
+          <span class="boss-meter" id="bossCampMeter" hidden></span>
+        </div>
+
+        <blockquote class="crow-quote" id="crowQuote">“星路已定，何必挣扎。”</blockquote>
+
+        <div class="panel-scan" aria-hidden="true"></div>
+      </aside>
+
+      <section class="board-stage" aria-label="星盘">
+        <div class="board-hood">
+          <div class="board-caption-top">
+            <span class="tiny-label">ASTRAL BOARD</span>
+            <span id="boardSizeLabel">13 × 13</span>
+          </div>
+
+          <div class="board-frame">
+            <span class="frame-corner tl" aria-hidden="true"></span>
+            <span class="frame-corner tr" aria-hidden="true"></span>
+            <span class="frame-corner bl" aria-hidden="true"></span>
+            <span class="frame-corner br" aria-hidden="true"></span>
+
+            <div class="board-coords">
+              <span class="coord-corner" aria-hidden="true">＋</span>
+              <div class="coord-top" id="coordTop" aria-hidden="true"></div>
+              <div class="coord-left" id="coordLeft" aria-hidden="true"></div>
+              <div class="board" id="board" role="grid" aria-label="13乘13星盘"></div>
+            </div>
+
+            <div class="board-fx" id="boardFx" aria-hidden="true">
+              <div class="fx-toast" id="fxToast"></div>
+              <svg class="win-line" id="winLine" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <line id="winLineGlow" x1="0" y1="0" x2="100" y2="100"></line>
+                <line id="winLineCore" x1="0" y1="0" x2="100" y2="100"></line>
+              </svg>
+            </div>
+          </div>
+
+          <div class="board-status">
+            <span class="legend"><i class="legend-dot legend-dot--player"></i>星火 · 你</span>
+            <span class="legend"><i class="legend-dot legend-dot--ai"></i>烬羽 · 墨鸦</span>
+            <span class="legend legend--last"><i class="legend-dot legend-dot--last"></i>最后一手</span>
+          </div>
+        </div>
+        <div class="board-hint" id="boardHint" aria-live="polite">点击手牌发动术式，或直接在星盘落子。</div>
+      </section>
+
+      <aside class="panel intel-panel" aria-label="情报与记录">
+        <div class="panel-corners" aria-hidden="true"></div>
+        <div class="card-inspector" id="cardInspector"></div>
+        <div class="log-panel">
+          <div class="rail-title">
+            <span>战局记录</span>
+            <span class="log-count" id="logCount">00</span>
+          </div>
+          <div class="log-list" id="logList" aria-live="polite"></div>
+        </div>
+      </aside>
+    </main>
+
+    <section class="player-dock" aria-label="你的手牌与操作">
+      <div class="player-identity">
+        <div class="avatar avatar--player" id="playerAvatar" aria-hidden="true"></div>
+        <div class="identity-text">
+          <p class="eyebrow">先手 · 星使</p>
+          <h2 class="fighter-name">游星</h2>
+          <div class="goal-inline">
+            <span id="playerGoal">七子连珠</span>
+            <span class="goal-pips" id="playerGoalPips"></span>
+          </div>
+        </div>
+        <div class="player-badges" id="playerBadges"></div>
+      </div>
+
+      <div class="hand-zone">
+        <div class="hand-head">
+          <span class="hand-label">你的手牌 <b id="playerHandCount">5</b>/7</span>
+          <span class="deck-counter">牌库 <b id="playerDeckCount">21</b> · 弃牌 <b id="playerDiscardCount">0</b></span>
+        </div>
+        <div class="hand" id="hand" role="list" aria-label="你的手牌"></div>
+      </div>
+
+      <div class="action-dock">
+        <div class="phase-track" aria-hidden="true">
+          <span data-phase="main">即时</span>
+          <i></i>
+          <span data-phase="place">落子</span>
+          <i></i>
+          <span data-phase="post">秘式</span>
+        </div>
+        <div class="action-buttons">
+          <button class="pixel-btn pixel-btn--ghost" id="cancelBtn" type="button" hidden>取消选择</button>
+          <button class="pixel-btn pixel-btn--primary" id="endTurnBtn" type="button" disabled>结束回合 <kbd>E</kbd></button>
+        </div>
+        <p class="action-hint" id="actionHint">选择一张即时术式，或直接落子。</p>
+      </div>
+    </section>
+
+    <div class="screen title-screen" id="titleScreen">
+      <div class="title-stars" aria-hidden="true"></div>
+      <div class="title-cards" id="titleCards" aria-hidden="true"></div>
+      <div class="title-content">
+        <p class="title-kicker"><span>✦</span> 星盘 · 术式 · 七子 <span>✦</span></p>
+        <h1 class="title-logo">
+          <span class="title-logo-cn">七曜牌局</span>
+          <span class="title-logo-en">SEVENFOLD</span>
+        </h1>
+        <p class="title-tagline">七子连珠，一牌改命。</p>
+        <p class="title-desc">在 13×13 星盘落下七枚同色星子。<br>即时术式改变棋局，延时秘式在暗处翻盘。</p>
+
+        <div class="difficulty-picker" id="difficultyPicker" role="group" aria-label="选择对手难度">
+          <span class="difficulty-label">墨鸦的棋力</span>
+          <div class="difficulty-options">
+            <button type="button" class="diff-btn" data-diff="easy"><b>见习</b><small>轻松对弈</small></button>
+            <button type="button" class="diff-btn is-active" data-diff="normal"><b>棋师</b><small>见招拆招</small></button>
+            <button type="button" class="diff-btn" data-diff="hard"><b>大棋士</b><small>步步紧逼</small></button>
+          </div>
+        </div>
+
+        <div class="difficulty-picker level-picker" id="levelPicker" role="group" aria-label="选择关卡">
+          <span class="difficulty-label">关卡</span>
+          <div class="difficulty-options">
+            <button type="button" class="diff-btn" data-level="basic"><b>基础关</b><small>换营 · 双术</small></button>
+            <button type="button" class="diff-btn" data-level="plain"><b>无技能关</b><small>原始规则</small></button>
+          </div>
+        </div>
+        <p class="level-line" id="levelLine">墨鸦权能：换营 · 双术</p>
+
+        <button class="start-btn" id="startBtn" type="button">
+          <span class="start-glyph">✦</span>
+          <span>开始对局</span>
+          <small>先手</small>
+        </button>
+
+        <div class="title-links">
+          <button type="button" data-open="help">玩法说明</button>
+          <span>·</span>
+          <button type="button" data-open="codex">卡牌图鉴</button>
+        </div>
+        <p class="record-line" id="recordLine">战绩 0 胜 · 0 负</p>
+      </div>
+      <p class="title-footer">FUSION PIXEL · WEB DEMO v1.0</p>
+    </div>
+
+    <div class="screen result-screen" id="resultScreen" hidden>
+      <div class="result-panel">
+        <p class="result-kicker" id="resultKicker">星盘终局</p>
+        <h2 class="result-title" id="resultTitle">七曜归位</h2>
+        <p class="result-sub" id="resultSub"></p>
+        <div class="result-line" id="resultLine"></div>
+        <div class="result-stats" id="resultStats"></div>
+        <div class="result-actions">
+          <button class="pixel-btn pixel-btn--primary" id="rematchBtn" type="button">再来一局</button>
+          <button class="pixel-btn pixel-btn--ghost" id="backTitleBtn" type="button">返回标题</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="modal" hidden>
+      <div class="modal-backdrop" data-close-modal></div>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <header class="modal-head">
+          <div>
+            <p class="eyebrow" id="modalKicker">ARCHIVE</p>
+            <h2 id="modalTitle">档案</h2>
+          </div>
+          <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
+        </header>
+        <div class="modal-body" id="modalBody"></div>
+      </section>
+    </div>
+
+    <div class="toast-layer" id="toastLayer" aria-live="assertive"></div>
+  </div>
+
+  <script src="js/cards.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
