@@ -239,3 +239,7 @@ node tests/ai.test.js
 ## 字体
 
 界面使用 [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font)，遵循 SIL Open Font License 1.1，许可证随附于 `assets/FUSION-PIXEL-LICENSE.txt`。
+
+## Contributors
+
+- [TauQ1u](https://github.com/TauQ1u) — loujian_qiu@email.ncu.edu.cn
