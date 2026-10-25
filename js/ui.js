@@ -2148,9 +2148,11 @@
     openLLMSettings(focus = []) {
       const LLM = window.SevenfoldLLM;
       if (!LLM) return;
-      const presets = LLM.PRESETS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      const presets = LLM.PRESETS
+        .map(p => `<option value="${p.id}">${p.name}${p.recommended ? '（推荐）' : ''}</option>`)
+        .join('');
       const seatForm = (side, title, hint) => {
-        const cfg = this.llmConfig[side] || {};
+        const cfg = this.llmConfig[side] || LLM.DEFAULT_SEAT;
         return `
         <section class="llm-seat" data-seat="${side}">
           <header><b>${title}</b><small>${hint}</small></header>
@@ -2166,6 +2168,7 @@
           <label class="llm-field"><span>API Key</span>
             <input data-key="${side}" type="password" value="${escapeHtml(cfg.apiKey || '')}" placeholder="sk-..." spellcheck="false" autocomplete="off">
           </label>
+          <p class="llm-keyhint">没有密钥？<a data-keyurl="${side}" target="_blank" rel="noopener">去 ${escapeHtml((LLM.PRESETS.find(p => p.id === (cfg.preset || 'deepseek')) || {}).name || '服务商')} 申请</a></p>
           <label class="llm-check"><input type="checkbox" data-thinking="${side}" ${cfg.thinking ? 'checked' : ''}> 开启思考模式（更慢，更容易被截断）</label>
           <div class="llm-seat-actions">
             <button type="button" data-test="${side}">测试连接</button>
@@ -2181,7 +2184,7 @@
           ${seatForm('player', '星火（你 / 左）', '人 vs LLM 时用不到这一栏')}
           ${seatForm('ai', '墨鸦（对面 / 右）', '人 vs LLM / LLM 对战都要填')}
         </div>
-        <p class="llm-note">浏览器直连需要服务商返回 CORS 头：DeepSeek / MiniMax / 小米可用，智谱直连会被浏览器拦。</p>
+        <p class="llm-note">地址和模型名是 2026-10 核对的现役版本（DeepSeek v4 / GLM-5.3 / MiMo V2.6 / MiniMax M3.1）。模型名随时会变，报 404 就点「测试连接」看你的账号能用哪些。<br>浏览器直连需要服务商返回 CORS 头：DeepSeek / MiniMax / 小米可以用，智谱直连会被浏览器拦。</p>
         <div class="llm-form-actions">
           <button type="button" id="llmSaveBtn">保存</button>
           <span class="llm-status" id="llmSaveHint"></span>
@@ -2203,6 +2206,15 @@
         const side = select.dataset.preset;
         const cfg = this.llmConfig[side];
         if (cfg && cfg.preset) select.value = cfg.preset;
+        const syncHint = () => {
+          const preset = LLM.PRESETS.find(p => p.id === select.value);
+          const link = body.querySelector(`[data-keyurl="${side}"]`);
+          if (link && preset) {
+            link.href = preset.keyUrl || '#';
+            link.textContent = `去 ${preset.name} 申请`;
+          }
+        };
+        syncHint();
         select.addEventListener('change', () => {
           const preset = LLM.PRESETS.find(p => p.id === select.value);
           if (!preset) return;
@@ -2210,6 +2222,7 @@
           const model = body.querySelector(`[data-model="${side}"]`);
           if (base && preset.baseURL) base.value = preset.baseURL;
           if (model && preset.model) model.value = preset.model;
+          syncHint();
         });
       });
       body.querySelectorAll('[data-test]').forEach(btn => {
@@ -2227,6 +2240,11 @@
           status.className = 'llm-status';
           try {
             const models = await LLM.listModels({ baseURL: cfg.baseURL, apiKey: cfg.apiKey });
+            const modelInput = body.querySelector(`[data-model="${side}"]`);
+            if (modelInput && !modelInput.value.trim() && models.length) {
+              const pick = models.find(id => !/embed|tts|whisper|image|vision-ocr/i.test(id));
+              if (pick) modelInput.value = pick;
+            }
             status.textContent = `连上了，${models.length} 个模型可用（${models.slice(0, 3).join(' / ')}${models.length > 3 ? ' …' : ''}）`;
             status.className = 'llm-status is-good';
           } catch (err) {

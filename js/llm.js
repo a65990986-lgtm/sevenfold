@@ -12,37 +12,59 @@
 (function (root) {
   'use strict';
 
+  // 2026-10 核对过的现役端点与模型名（模型名会变，报 404 就点「测试连接」看列表）
   const PRESETS = [
     {
-      id: 'deepseek', name: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1',
-      model: 'deepseek-chat', cors: true,
-      note: '便宜、中文好，支持关闭思考'
+      id: 'deepseek', name: 'DeepSeek', recommended: true,
+      baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash',
+      keyUrl: 'https://platform.deepseek.com/api_keys',
+      cors: true,
+      note: '推荐：便宜、中文好、回 CORS。更强可以用 deepseek-v4-pro'
     },
     {
-      id: 'openai', name: 'OpenAI', baseURL: 'https://api.openai.com/v1',
-      model: 'gpt-4o-mini', cors: true,
-      note: '需要能直连 api.openai.com'
+      id: 'zhipu', name: '智谱 GLM',
+      baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.3',
+      keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys',
+      cors: false,
+      note: '不返回 CORS 头，浏览器直连会被拦；GLM-5.3 强制思考，会慢一些'
     },
     {
-      id: 'zhipu', name: '智谱 GLM', baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-      model: 'glm-4-flash', cors: false,
-      note: '不返回 CORS 头，浏览器直连会被拦；需要自建代理'
+      id: 'xiaomi', name: '小米 MiMo',
+      baseURL: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash',
+      keyUrl: 'https://platform.xiaomimimo.com/#/console/api-keys',
+      cors: true,
+      note: '回 CORS，可直连。更强可以用 mimo-v2.6-pro；V2.5 已停用'
     },
     {
-      id: 'xiaomi', name: '小米 MiMo', baseURL: 'https://api.xiaomi.com/mimo/v1',
-      model: 'mimo-7b-rl', cors: true,
-      note: '回 CORS *，可直连'
+      id: 'minimax', name: 'MiniMax',
+      baseURL: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3.1-Flash',
+      keyUrl: 'https://platform.minimaxi.com/',
+      cors: true,
+      note: '国内站；国际站换成 api.minimax.io/v1'
     },
     {
-      id: 'minimax', name: 'MiniMax', baseURL: 'https://api.minimax.chat/v1',
-      model: 'abab6.5s-chat', cors: true,
-      note: '回 CORS，可直连'
+      id: 'openai', name: 'OpenAI',
+      baseURL: 'https://api.openai.com/v1', model: 'gpt-5-mini',
+      keyUrl: 'https://platform.openai.com/api-keys',
+      cors: true,
+      note: '模型名随账号/地区变化，点「测试连接」可列出可用模型'
     },
     {
-      id: 'custom', name: '自定义', baseURL: '', model: '', cors: null,
-      note: '任何 OpenAI 兼容端点，例如自建的 vLLM / one-api'
+      id: 'custom', name: '自定义',
+      baseURL: '', model: '', cors: null,
+      note: '任何 OpenAI 兼容端点，例如自建的 vLLM / one-api / 硅基流动'
     }
   ];
+
+  // 首次打开设置面板时的预填值（只预填地址和模型，密钥必须自己填）
+  const DEFAULT_SEAT = {
+    preset: 'deepseek',
+    baseURL: 'https://api.deepseek.com/v1',
+    model: 'deepseek-v4-flash',
+    apiKey: '',
+    thinking: false
+  };
+
 
   const DEFAULT_TIMEOUT = 90000;
   const MAX_TOKENS = 3000;
@@ -491,6 +513,7 @@
 
   const lib = {
     PRESETS,
+    DEFAULT_SEAT,
     LLMError,
     chat,
     listModels,

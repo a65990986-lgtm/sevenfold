@@ -2602,3 +2602,7 @@ img.brand-sigil {
 }
 .opp-deck-stack span { display: none; }
 .opp-deck-panel { --card-art: url('assets/bg/middle.webp'); }
+
+.llm-keyhint { margin: -2px 0 2px; font-size: 10px; color: #8b7fa8; }
+.llm-keyhint a { color: #67e8f9; text-decoration: none; border-bottom: 1px dotted rgba(103, 232, 249, .5); }
+.llm-keyhint a:hover { color: #b9f4ff; }
