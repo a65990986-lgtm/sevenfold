@@ -359,6 +359,17 @@
         backBtn: $('#backBtn'),
         aiModeLabel: $('#aiModeLabel'),
         aiAvatar: $('#aiAvatar'),
+        soundBtn: $('#soundBtn'),
+        modeBadge: $('#modeBadge'),
+        titleArt: $('#titleArt'),
+        oppDeckPanel: $('#oppDeckPanel'),
+        llmSettingsBtn: $('#llmSettingsBtn'),
+        llmSettingsState: $('#llmSettingsState'),
+        llmError: $('#llmError'),
+        llmErrorTitle: $('#llmErrorTitle'),
+        llmErrorText: $('#llmErrorText'),
+        llmRetryBtn: $('#llmRetryBtn'),
+        llmAbortBtn: $('#llmAbortBtn'),
         bossHpBox: $('#bossHpBox'),
         bossHp: $('#bossHp'),
         aiHandCount: $('#aiHandCount'),
@@ -1389,7 +1400,7 @@
     renderOpponent() {
       const s = this.engine.state;
       const a = s.players.ai;
-      const avatar = this.dom.aiAvatar || this.dom.oppAvatar;
+      const avatar = this.dom.aiAvatar;
       if (avatar) {
         const isBoss = this.mode === 'boss';
         avatar.classList.toggle('is-boss', isBoss);
@@ -2252,8 +2263,8 @@
           const hint = body.querySelector('#llmSaveHint');
           if (hint) { hint.textContent = '已保存'; hint.className = 'llm-status is-good'; }
           this.dom.modal.hidden = true;
-          this.applyArt('normal');
-      this.renderLLMState();
+          this.applyArt(this.mode);
+          this.renderLLMState();
           this.toast('LLM 设置已保存', 'player');
         });
       }
