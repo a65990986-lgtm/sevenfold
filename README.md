@@ -22,7 +22,15 @@
    `titleArt` / `modeBadge` / `oppDeckPanel` …），这些引用一直是 `undefined`，所以按钮、掉线面板、音乐开关、
    难度立绘切换全部是死的，而且不报错。
 
-另外补了 `tools/ui-smoke.js`（jsdom 无头点按钮，26 项），把这两类问题变成可回归的检查。
+3. **LLM 出牌被判非法**：模型常把卡牌 uid（如 `c22`）当成卡牌 id 发回来，之前一律报「手里没有这张牌」。
+   现在 `id` 同时接受 **卡名 / uid / 手牌序号**，报错里还会列出手里有什么，重试时模型能自我纠正。
+4. **双 LLM 对局弹出人类的「4 选 2」补给面板**：座位守卫在合并时丢了，现在 `offer` 事件和 `openOffer()`
+   两处都判断座位，云端座位绝不会弹人类面板。
+
+另外补了 `tools/ui-smoke.js`（jsdom 无头点按钮，27 项），把这两类问题变成可回归的检查。
+
+> **LLM 对战已修复**：双 LLM 对局现在会由两个模型轮流行动（补给 → 出牌 → 落子 → 弃牌 → 结束回合），
+> 不再卡在第一次请求，也不会把人类拉进来选牌。
 
 ### 图标
 `pictures/Pasted image.png`（紫底金边像素棋盘）已转成 `assets/favicon-32.png`、`assets/favicon-192.png`、`assets/apple-touch-icon.png`，
