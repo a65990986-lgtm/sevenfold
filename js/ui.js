@@ -996,6 +996,8 @@
           if (event.side === 'player') this.playSound('turnEnd');
           break;
         case 'offer':
+          if (this.getSeatKind('player') !== 'human') break;   // LLM 座位自己选，别弹人类面板
+          this.playSound('offer');
           this.openOffer(event.cards);
           break;
         case 'draftChosen': {
@@ -1917,6 +1919,7 @@
     }
 
     openOffer(cards) {
+      if (this.getSeatKind('player') !== 'human') return;    // 双保险
       this.playSound('modal');
       this.playSound('offer', { delay: 70 });
       this.offerIsTutorial = false;

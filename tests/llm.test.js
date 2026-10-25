@@ -164,6 +164,27 @@ function freshEngine() {
     assert.strictEqual(bad4.ok, false, '体力 2 不够崩星（3 点），应当拒绝');
   });
 
+  await test('normalizeTurn 也能用 uid / 手牌序号 / 卡名 指定卡牌', () => {
+    const e = freshEngine();
+    const cells = LLM.candidateCells(e.state, 40);
+    // 用 uid
+    const byUid = LLM.normalizeTurn(e.state, e, 'ai', { place: 1, cards: [{ id: 'h1', r: 9, c: 9 }] }, cells);
+    assert.strictEqual(byUid.ok, true, byUid.reason);
+    assert.strictEqual(byUid.cards[0].id, 'twin');
+    // 用 1 起的序号（第 1 张是双生星）
+    const byIndex = LLM.normalizeTurn(e.state, e, 'ai', { place: 1, cards: [{ id: 1, r: 9, c: 9 }] }, cells);
+    assert.strictEqual(byIndex.ok, true, byIndex.reason);
+    assert.strictEqual(byIndex.cards[0].id, 'twin');
+    // 用中文卡名
+    const byName = LLM.normalizeTurn(e.state, e, 'ai', { place: 1, cards: [{ id: '双生星', r: 9, c: 9 }] }, cells);
+    assert.strictEqual(byName.ok, true, byName.reason);
+    assert.strictEqual(byName.cards[0].id, 'twin');
+    // 真没有的牌，报错里要列出手里有什么
+    const bad = LLM.normalizeTurn(e.state, e, 'ai', { place: 1, cards: [{ id: 'c999' }] }, cells);
+    assert.strictEqual(bad.ok, false);
+    assert.ok(bad.reason.includes('双生星'), bad.reason);
+  });
+
   await test('normalizeDraft 只收 2 个合法编号', () => {
     const e = freshEngine();
     e.state.offer = [

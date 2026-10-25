@@ -407,11 +407,18 @@
       if (!Array.isArray(obj.cards)) return { ok: false, reason: 'cards 必须是数组' };
       for (const item of obj.cards) {
         if (!item || typeof item !== 'object') return { ok: false, reason: 'cards 里有一项不是对象' };
-        const id = String(item.id || item.card || '').trim();
-        const entry = me.hand.find(e => e.id === id)
+        const raw = item.id !== undefined ? item.id : (item.card !== undefined ? item.card : item.uid);
+        const id = String(raw === undefined || raw === null ? '' : raw).trim();
+        const byIndex = /^\d+$/.test(id) ? me.hand[Number(id) - 1] : null;   // 手牌序号（1 起）
+        const entry = byIndex
+          || me.hand.find(e => e.id === id)
+          || me.hand.find(e => e.uid === id)
           || me.hand.find(e => e.uid === String(item.uid || ''))
           || me.hand.find(e => engine.cardById(e.id)?.name === id);
-        if (!entry) return { ok: false, reason: `手里没有这张牌：${id || '(空)'}` };
+        if (!entry) {
+          const names = me.hand.map((e, i) => `${i + 1}.${engine.cardById(e.id)?.name || e.id}(uid=${e.uid})`).join(' ');
+          return { ok: false, reason: `手里没有这张牌：${id || '(空)'}。可选：${names}` };
+        }
         const card = engine.cardById(entry.id);
         if (engine.cardCost(entry) > me.mana - cards.reduce((sum, c) => sum + c.cost, 0)) {
           return { ok: false, reason: `体力不够施放「${card ? card.name : entry.id}」` };

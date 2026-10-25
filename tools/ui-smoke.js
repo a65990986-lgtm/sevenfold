@@ -145,6 +145,10 @@ async function boot(withKeys = true, fetchImpl = null) {
       w.sevenfold.requestRender();
       return JSON.stringify(w.sevenfold.seatKind) === '{"player":"llm","ai":"llm"}' ? true : JSON.stringify(w.sevenfold.seatKind);
     });
+    t('LLM 对战：不弹人类的补给面板', () => {
+      const el = w.document.querySelector('#offerScreen');
+      return el && el.hidden === true ? true : '补给面板被打开了';
+    });
     t('LLM 对战：棋盘上真的落下子', () => {
       const n = w.sevenfold.engine.state.stats.stonesPlaced;
       return n >= 2 ? true : '只落了 ' + n + ' 子';
