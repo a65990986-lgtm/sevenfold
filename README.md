@@ -1,4 +1,4 @@
-# 七曜牌局 · 简化版 v1.1
+# 七曜牌局 · 简化版 v1.2
 
 20×20 七子棋 + 13 张卡牌的像素风网页游戏，支持人机对局、Boss 关与 LLM 对战。
 
@@ -12,7 +12,17 @@
 - TauQ1u
 - a65990986-lgtm
 
-## 版本新增（v1.0.6 → v1.1）
+## 版本新增（v1.0.6 → v1.2）
+
+### v1.2 修的两个真 bug
+
+1. **LLM 对战卡死**：`ui.js` 的 `requestRender()` 里误植了初始化代码，每次重绘都把座位重置成「人类 vs 本地 AI」，
+   导致开局后两个模型只跑了第一次请求就不再动。已修复，并加了回归测试（渲染后座位不能被重置、两个模型都要真的出手）。
+2. **LLM 设置按钮点了没反应**：`cacheDom` 漏注册 12 个元素（`llmSettingsBtn` / `llmRetryBtn` / `soundBtn` /
+   `titleArt` / `modeBadge` / `oppDeckPanel` …），这些引用一直是 `undefined`，所以按钮、掉线面板、音乐开关、
+   难度立绘切换全部是死的，而且不报错。
+
+另外补了 `tools/ui-smoke.js`（jsdom 无头点按钮，26 项），把这两类问题变成可回归的检查。
 
 ### 图标
 `pictures/Pasted image.png`（紫底金边像素棋盘）已转成 `assets/favicon-32.png`、`assets/favicon-192.png`、`assets/apple-touch-icon.png`，
