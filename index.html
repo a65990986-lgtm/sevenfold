@@ -45,7 +45,7 @@
         <div class="opp-identity">
           <span class="opp-avatar" id="aiAvatar" aria-hidden="true">✦</span>
           <div>
-            <b>墨鸦</b>
+            <b id="aiName">墨鸦</b>
             <small id="aiModeLabel"></small>
           </div>
         </div>
@@ -72,9 +72,9 @@
         </div>
       </div>
 
-      <section class="hand-zone" aria-label="你的手牌">
+      <section class="hand-zone" id="handZone" aria-label="你的手牌">
         <div class="hand-head">
-          <span>你的手牌 <b id="playerHandCount">4</b> / 4</span>
+          <span><span id="playerHandLabel">你的手牌</span> <b id="playerHandCount">4</b> / 4</span>
           <span class="goal-chip" id="playerGoal">七子</span>
           <span class="hand-sub">回合结束前弃到 4 张</span>
           <span class="deck-count">牌库 <b id="playerDeckCount">22</b> · 弃牌 <b id="playerDiscardCount">0</b></span>

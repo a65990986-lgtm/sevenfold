@@ -120,7 +120,7 @@
       thinking = false, fetchImpl = null
     } = options || {};
     const impl = fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
-    if (!impl) throw new LLMError('config', '当前环境没有 fetch，无法请求模型');
+    if (!impl) throw new LLMError('env', '当前环境没有 fetch，无法请求模型（浏览器太旧或被策略禁用）');
     if (!baseURL || !model || !apiKey) throw new LLMError('config', '还没填完 baseURL / 模型名 / 密钥');
     const url = joinURL(baseURL, '/chat/completions');
     if (!url) throw new LLMError('config', 'baseURL 不合法');
@@ -150,7 +150,7 @@
         signal: controller ? controller.signal : undefined
       });
     } catch (err) {
-      throw new LLMError('network', '请求没发出去：' + (err && err.message ? err.message : '网络错误'), err);
+      throw new LLMError('network', '请求没发出去：' + (err && err.message ? err.message : '网络错误'), url);
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -186,7 +186,7 @@
 
   async function listModels({ baseURL, apiKey, fetchImpl = null, timeoutMs = 20000 }) {
     const impl = fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
-    if (!impl) throw new LLMError('config', '当前环境没有 fetch');
+    if (!impl) throw new LLMError('env', '当前环境没有 fetch');
     const url = joinURL(baseURL, '/models');
     if (!url) throw new LLMError('config', 'baseURL 不合法');
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -202,7 +202,7 @@
       return list.map(item => (typeof item === 'string' ? item : item.id || item.name)).filter(Boolean);
     } catch (err) {
       if (err instanceof LLMError) throw err;
-      throw new LLMError('network', '连不上：' + (err && err.message ? err.message : '网络错误'), err);
+      throw new LLMError('network', '连不上：' + (err && err.message ? err.message : '网络错误'), url);
     } finally {
       if (timer) clearTimeout(timer);
     }

@@ -359,6 +359,8 @@
         backBtn: $('#backBtn'),
         aiModeLabel: $('#aiModeLabel'),
         aiAvatar: $('#aiAvatar'),
+        aiName: $('#aiName'),
+        playerHandLabel: $('#playerHandLabel'),
         soundBtn: $('#soundBtn'),
         modeBadge: $('#modeBadge'),
         titleArt: $('#titleArt'),
@@ -1125,7 +1127,7 @@
       if (event.draw) {
         this.addLog('棋盘已满，平局。', 'system');
       } else {
-        this.addLog(`<em>${event.winner === 'player' ? '你' : '墨鸦'}完成了 ${event.win.target} 子连珠。</em>`, 'reveal');
+        this.addLog(`<em>${this.seatName(event.winner)}完成了 ${event.win.target} 子连珠。</em>`, 'reveal');
         this.animateWinLine(event.win);
       }
       this.resultTimer = setTimeout(() => {
@@ -1167,9 +1169,9 @@
         : won ? (target === 6 ? '六星归位' : '七星归位') : lost ? '星火熄灭' : '星盘无声';
       this.dom.resultTitle.className = `result-title${lost ? ' is-loss' : ''}`;
       this.dom.resultSub.textContent = won
-        ? (bossClear ? `你在第 ${state.round} 回合把墨鸦的两条命都打掉了（最后一击 ${target} 子连珠）。` : `你在第 ${state.round} 回合完成 ${target} 子连珠。`)
+        ? (bossClear ? `${this.seatName('player')}在第 ${state.round} 回合把墨鸦的两条命都打掉了（最后一击 ${target} 子连珠）。` : `${this.seatName('player')}在第 ${state.round} 回合完成 ${target} 子连珠。`)
         : lost
-          ? `墨鸦在第 ${state.round} 回合完成 ${target} 子连珠。`
+          ? `${this.seatName('ai')}在第 ${state.round} 回合完成 ${target} 子连珠。`
           : '棋盘已满，双方都没能改写结局。';
       this.dom.resultStats.innerHTML = `
         <div class="result-stat"><span>回合</span><b>${pad2(state.round)}</b></div>
@@ -1257,16 +1259,21 @@
       } else if (s.current === 'ai') {
         this.dom.turnBadge.className = 'turn-badge is-ai';
         const thinking = this.aiRunning || this.llmRunning;
-        const who = this.getSeatKind('ai') === 'llm'
-          ? (this.llmConfig.ai?.model || 'LLM')
-          : '墨鸦';
-        this.dom.turnBadge.innerHTML = `<i></i>${thinking ? `${who} 思考中` : `${who}回合`}`;
+        const side = s.current;
+        const who = this.seatName(side);
+        const label = who === '你'
+          ? (thinking ? '你的回合' : '你的回合')
+          : (thinking ? `${who} 思考中` : `${who} 回合`);
+        this.dom.turnBadge.innerHTML = `<i></i>${label}`;
       } else if (s.phase === 'draft') {
         this.dom.turnBadge.className = 'turn-badge is-draft';
-        this.dom.turnBadge.innerHTML = '<i></i>补给选择';
+        const who = this.seatName('player');
+        this.dom.turnBadge.innerHTML = `<i></i>${who === '你' ? '补给选择' : `${who} 选补给`}`;
       } else {
         this.dom.turnBadge.className = 'turn-badge';
-        this.dom.turnBadge.innerHTML = '<i></i>你的回合';
+        const who = this.seatName('player');
+        const thinking = this.llmRunning;
+        this.dom.turnBadge.innerHTML = `<i></i>${who === '你' ? '你的回合' : (thinking ? `${who} 思考中` : `${who} 回合`)}`;
       }
     }
 
@@ -1406,6 +1413,7 @@
         avatar.classList.toggle('is-boss', isBoss);
         avatar.textContent = isBoss ? '' : '✦';
       }
+      if (this.dom.aiName) this.dom.aiName.textContent = this.seatName('ai');
       const aiSeat = this.getSeatKind('ai');
       if (aiSeat === 'llm') {
         this.dom.aiModeLabel.textContent = `云端 · ${this.llmConfig.ai?.model || '未配置'}`;
@@ -1452,6 +1460,10 @@
       const hand = s.players.player.hand;
       this.dom.playerHandCount.textContent = hand.length;
       this.dom.playerHandCount.classList.toggle('is-over', hand.length > 4);
+      if (this.dom.playerHandLabel) {
+        const me = this.seatName('player');
+        this.dom.playerHandLabel.textContent = me === '你' ? '你的手牌' : `${me} 的手牌`;
+      }
       this.dom.playerDeckCount.textContent = s.players.player.deck.length;
       this.dom.playerDiscardCount.textContent = s.players.player.discard.length;
       if (!hand.length) {
@@ -2033,6 +2045,14 @@
       }
     }
 
+    // 某个座位在界面上叫什么：人类=你、云端=模型名、本地 AI=墨鸦
+    seatName(side) {
+      const kind = this.getSeatKind(side);
+      if (kind === 'llm') return this.llmConfig[side]?.model || '云端模型';
+      if (kind === 'human') return '你';
+      return '墨鸦';
+    }
+
     getSeatKind(side) {
       return (this.seatKind && this.seatKind[side]) || 'human';
     }
@@ -2061,7 +2081,7 @@
         return;
       }
       const session = this.sessionId;
-      const label = side === 'player' ? '星火' : '墨鸦';
+      const label = this.seatName(side);
       const seat = new window.SevenfoldLLM.LLMSeat(this.engine, side, cfg);
       const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
       this.llmRunning = true;
@@ -2080,7 +2100,7 @@
         }
         const plan = await seat.decideTurn();
         if (session !== this.sessionId) return;
-        this.addLog(`${label}（${cfg.model}）：${plan.why || '（没写理由）'}`, side);
+        this.addLog(`${label}：${plan.why || '（没写理由）'}`, side);
         for (const card of plan.cards) {
           if (this.engine.state.status !== 'playing') break;
           const res = this.engine.playCard(side, card.uid, card.payload);
@@ -2119,10 +2139,11 @@
     }
 
     showLLMError(side, err) {
-      const label = side === 'player' ? '星火' : '墨鸦';
+      const label = this.seatName(side);
       const code = err && err.code ? err.code : 'unknown';
       const titles = {
         config: '配置不完整',
+        env: '环境不支持',
         network: '连不上模型',
         http: '接口返回错误',
         parse: '输出解析失败',
@@ -2131,7 +2152,22 @@
       };
       this.llmError = { side, code, message: err && err.message ? err.message : String(err) };
       this.dom.llmErrorTitle.textContent = `${label} · ${titles[code] || titles.unknown}`;
-      this.dom.llmErrorText.textContent = this.llmError.message + (err && err.detail ? `\n${String(err.detail).slice(0, 200)}` : '');
+      let text = this.llmError.message;
+      if (code === 'network') {
+        const cfg = this.llmConfig[side] || {};
+        const url = err && err.detail ? String(err.detail) : `${cfg.baseURL || '?'}/chat/completions`;
+        const isFile = location.protocol === 'file:';
+        text += `\n\n请求地址：${url}`;
+        if (isFile) text += '\n注意：你现在是用 file:// 打开的页面，部分浏览器会直接拦掉这类请求。换成 https 网址或本地 http 服务（python -m http.server）再试。';
+        text += '\n\n自查顺序：';
+        text += '\n1. 在浏览器地址栏打开上面的域名，能打开说明网络通；';
+        text += '\n2. 点设置里的「测试连接」：连 /models 也失败 = 网络层问题；返回 401 = 网络通，是密钥不对；';
+        text += '\n3. 开了代理/插件/防火墙的话，先关掉再试；';
+        text += '\n4. 所在网络连不上该服务商时，可以自己搭一个转发（例如 Cloudflare Worker），把 Base URL 填成你的转发地址。';
+      } else if (err && err.detail) {
+        text += `\n${String(err.detail).slice(0, 200)}`;
+      }
+      this.dom.llmErrorText.textContent = text;
       this.dom.llmError.hidden = false;
       this.playSound('deny');
       this.addLog(`${label} 出错：${this.llmError.message}`, 'system');
@@ -2194,6 +2230,7 @@
           ${seatForm('player', '星火（你 / 左）', '人 vs LLM 时用不到这一栏')}
           ${seatForm('ai', '墨鸦（对面 / 右）', '人 vs LLM / LLM 对战都要填')}
         </div>
+        ${location.protocol === 'file:' ? '<p class="llm-warn">你现在是 file:// 打开本页的，部分浏览器会拦掉跨域请求。建议用 https 或本地 http 服务（python -m http.server）再连。</p>' : ''}
         <p class="llm-note">地址和模型名是 2026-10 核对的现役版本（DeepSeek v4 / GLM-5.3 / MiMo V2.6 / MiniMax M3.1）。模型名随时会变，报 404 就点「测试连接」看你的账号能用哪些。<br>浏览器直连需要服务商返回 CORS 头：DeepSeek / MiniMax / 小米可以用，智谱直连会被浏览器拦。</p>
         <div class="llm-form-actions">
           <button type="button" id="llmSaveBtn">保存</button>
