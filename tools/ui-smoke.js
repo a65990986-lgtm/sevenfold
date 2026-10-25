@@ -30,15 +30,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const click = (w, el) => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
 const modeBtn = (w, mode) => [...w.document.querySelectorAll('.mode-btn[data-mode]')].find(b => b.dataset.mode === mode);
 
-async function boot(withKeys = true) {
+async function boot(withKeys = true, fetchImpl = null) {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const dom = new JSDOM(html, { url: 'https://example.com/', pretendToBeVisual: true, runScripts: 'outside-only' });
   const { window } = dom;
   window.scrollTo = () => {};
+  if (fetchImpl) window.fetch = fetchImpl;
   if (withKeys) {
     window.localStorage.setItem('sevenfold.llm', JSON.stringify({
       player: { preset: 'deepseek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', apiKey: 'sk-a', thinking: false },
-      ai: { preset: 'deepseek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', apiKey: 'sk-b', thinking: false }
+      ai: { preset: 'xiaomi', baseURL: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash', apiKey: 'sk-b', thinking: false }
     }));
   }
   for (const f of ['js/cards.js', 'js/engine.js', 'js/ai.js', 'js/sound.js', 'js/llm.js', 'js/ui.js'])
@@ -49,9 +50,9 @@ async function boot(withKeys = true) {
 }
 
 (async () => {
-  // ---- A. 基础接线
+  // ---- A. 基础接线（未配置过，所以弹窗应预填 DeepSeek 默认值）
   {
-    const w = await boot();
+    const w = await boot(false);
     const app = w.sevenfold;
     const $ = s => w.document.querySelector(s);
     t('GameApp 实例化', () => !!app);
@@ -120,6 +121,36 @@ async function boot(withKeys = true) {
       return panel.hidden === false && note.length > 0 ? true : '面板 hidden / 没文字';
     });
   }
+  // ---- D2. LLM 对战：两个模型都会行动（回归测试：渲染不能重置座位）
+  {
+    const calls = [];
+    const fakeFetch = (url, init) => {
+      const body = JSON.parse(init.body);
+      const user = body.messages[1].content;
+      const isDraft = user.includes('可选补给');
+      calls.push(`${isDraft ? 'draft' : 'turn'}:${body.model}`);
+      const content = isDraft
+        ? '{"pick":[1,2],"why":"测试"}'
+        : '{"why":"测试","place":1,"cards":[],"discard":[]}';
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content }, finish_reason: 'stop' }] }) });
+    };
+    const w = await boot(true, fakeFetch);
+    click(w, modeBtn(w, 'llmpk'));
+    await sleep(2600);
+    t('LLM 对战：两个模型都出了手', () => {
+      const models = new Set(calls.map(c => c.split(':')[1]));
+      return calls.length >= 4 && models.size === 2 ? true : `只有 ${calls.length} 次：${calls.join(',')}`;
+    });
+    t('LLM 对战：渲染后座位没被重置', () => {
+      w.sevenfold.requestRender();
+      return JSON.stringify(w.sevenfold.seatKind) === '{"player":"llm","ai":"llm"}' ? true : JSON.stringify(w.sevenfold.seatKind);
+    });
+    t('LLM 对战：棋盘上真的落下子', () => {
+      const n = w.sevenfold.engine.state.stats.stonesPlaced;
+      return n >= 2 ? true : '只落了 ' + n + ' 子';
+    });
+  }
+
   // ---- E. 挑战 LLM（人 vs LLM）
   {
     const w = await boot();

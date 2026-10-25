@@ -1213,11 +1213,7 @@
     requestRender() {
       if (this._renderRaf) return;
       this._renderRaf = requestAnimationFrame(() => {
-        this.seatKind = { player: 'human', ai: 'ai' };
-      this.llmConfig = this.loadLLMConfig();
-      this.llmRunning = false;
-      this.llmError = null;
-      this._renderRaf = null;
+        this._renderRaf = null;
         this.renderAll();
       });
     }
