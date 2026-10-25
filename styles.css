@@ -2385,3 +2385,220 @@ body {
   .fx-idle small { font-size: 9px; }
   .fx-caption, .fx-ritual-label { font-size: 9px; }
 }
+
+/* ---------------- Boss 关 ---------------- */
+.mode-btn.boss { border-color: #f0abfc; }
+.mode-btn.boss .mode-glyph { color: #f0abfc; }
+.mode-btn.boss small { color: #e9c8ff; }
+
+.boss-hp b {
+  color: #ff5c8a;
+  letter-spacing: 2px;
+  font-size: 13px;
+}
+.opp-stat.boss-hp { border-color: rgba(255, 92, 138, 0.45); }
+
+/* ---------------- LLM 对战 ---------------- */
+.mode-btn.llm { border-color: #67e8f9; }
+.mode-btn.llm .mode-glyph { color: #67e8f9; }
+.mode-btn.llm small { color: #b6f3ff; }
+
+.title-llm { margin-top: 6px; }
+.title-llm b { color: #67e8f9; font-size: 10px; }
+
+.llm-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.llm-seat {
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  background: linear-gradient(180deg, rgba(20, 14, 40, 0.9), rgba(10, 8, 22, 0.9));
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.llm-seat header { display: flex; flex-direction: column; gap: 2px; }
+.llm-seat header b { color: #efe6ff; letter-spacing: 1px; }
+.llm-seat header small { color: #8b7fa8; font-size: 11px; }
+.llm-field { display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 8px; font-size: 12px; color: #b9aecd; }
+.llm-field input, .llm-field select {
+  width: 100%;
+  padding: 6px 8px;
+  color: #efe6ff;
+  background: #120c24;
+  border: 1px solid #3a2d55;
+  font-family: inherit;
+  font-size: 12px;
+}
+.llm-field input:focus, .llm-field select:focus { outline: none; border-color: #67e8f9; }
+.llm-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #b9aecd; }
+.llm-seat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.llm-seat-actions button, .llm-form-actions button {
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #0b0716;
+  background: #67e8f9;
+  border: none;
+  cursor: pointer;
+}
+.llm-seat-actions button:disabled { opacity: 0.5; cursor: default; }
+.llm-status { font-size: 11px; color: #8b7fa8; }
+.llm-status.is-good { color: #7ef0b0; }
+.llm-status.is-bad { color: #ff6b8a; }
+.llm-warn { font-size: 11px; color: #ffd479; margin: 0 0 10px; line-height: 1.6; }
+.llm-note { font-size: 11px; color: #8b7fa8; margin: 10px 0; line-height: 1.6; }
+.llm-form-actions { display: flex; align-items: center; gap: 10px; }
+
+.llm-error {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 5, 18, 0.78);
+  backdrop-filter: blur(3px);
+}
+.llm-error-box {
+  width: min(440px, 92vw);
+  padding: 20px;
+  border: 1px solid #ff6b8a;
+  background: #140d26;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.llm-error-box h3 { margin: 4px 0 10px; color: #ff6b8a; font-size: 16px; letter-spacing: 1px; }
+.llm-error-box p { margin: 0 0 8px; font-size: 12px; color: #d8cbe8; line-height: 1.7; white-space: pre-wrap; }
+.llm-error-actions { display: flex; gap: 10px; margin-top: 14px; }
+.llm-error-actions button {
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #0b0716;
+  background: #ff6b8a;
+  border: none;
+  cursor: pointer;
+}
+.llm-error-actions button.ghost { background: transparent; color: #d8cbe8; border: 1px solid #4a3a6a; }
+
+/* ---------------- 标题页：主模式 + 进阶玩法小组 ---------------- */
+.title-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 11px;
+  flex-wrap: wrap;
+}
+.title-actions .title-codex { margin-top: 0; }
+
+.mode-sub {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.mode-btn.is-compact {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 10px 3px 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+}
+.mode-btn.is-compact .mode-sub-text { display: flex; flex-direction: column; gap: 1px; }
+.mode-btn.is-compact .mode-sub-text b { font-size: 12px; letter-spacing: 1px; }
+.mode-btn.is-compact .mode-sub-text small { margin-top: 0; font-size: 9px; color: #8b7fa8; }
+.mode-btn.is-compact .mode-glyph { font-size: 14px; line-height: 1; }
+.mode-thumb {
+  width: 24px;
+  height: 30px;
+  object-fit: cover;
+  object-position: 50% 18%;
+  border: 1px solid rgba(240, 171, 252, 0.45);
+  filter: saturate(0.95);
+}
+.mode-btn.is-compact.boss { border-color: rgba(240, 171, 252, 0.55); }
+.mode-btn.is-compact.boss:hover .mode-thumb { filter: saturate(1.15) brightness(1.08); }
+
+/* Boss 模式的对局头像用墨鸦立绘 */
+.opp-avatar.is-boss {
+  background-image: url('assets/boss-face.png');
+  background-size: cover;
+  background-position: 50% 22%;
+  color: transparent;
+  border-color: rgba(240, 171, 252, 0.6);
+  box-shadow: 0 0 14px rgba(190, 90, 255, 0.45);
+}
+
+/* ---------------- 难度背景 / 图标品牌 / 难度徽章 / 墨鸦卡背 ---------------- */
+
+/* 顶栏品牌：金色方块换成应用图标，右边的「七曜牌局 / SIMPLIFIED」原样保留 */
+img.brand-sigil {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.22);
+  object-fit: cover;
+  display: block;
+  clip-path: none;      /* 图标自己有圆角金框，不要再切八角 */
+  background: none;
+}
+@media (max-width: 820px) {
+  img.brand-sigil { width: 26px; height: 26px; border-radius: 6px; }
+}
+@media (min-width: 1280px) {
+  img.brand-sigil { width: 42px; height: 42px; border-radius: 10px; }
+}
+
+/* 顶栏难度徽章 */
+.mode-badge {
+  padding: 3px 8px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #ffe9b8;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.10);
+  white-space: nowrap;
+}
+.mode-badge.is-boss { color: #ffd0f5; border-color: rgba(240, 171, 252, 0.55); background: rgba(240, 171, 252, 0.12); }
+.mode-badge.is-llm { color: #b9f4ff; border-color: rgba(103, 232, 249, 0.5); background: rgba(103, 232, 249, 0.1); }
+
+/* 标题屏：难度立绘背景 + 压暗层 */
+.title-art {
+  position: absolute;
+  inset: 0;
+  background-image: var(--title-art, url('assets/bg/middle.webp'));
+  background-size: cover;
+  background-position: 50% 16%;
+  background-repeat: no-repeat;
+  opacity: 0.62;
+  filter: saturate(0.95) contrast(1.02);
+  transition: opacity 260ms linear, background-image 260ms linear;
+  z-index: 0;
+}
+.title-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(120% 90% at 50% 8%, rgba(10, 6, 20, 0.15), rgba(8, 5, 18, 0.88) 62%, rgba(6, 4, 14, 0.97)),
+    linear-gradient(180deg, rgba(8, 5, 18, 0.55), rgba(8, 5, 18, 0.2) 40%, rgba(8, 5, 18, 0.92));
+}
+.title-screen::before { z-index: 2; }
+.title-screen::after { z-index: 3; }
+.title-content { z-index: 5; }
+
+/* 墨鸦手牌堆：最上面那张用当局限定难度立绘做卡背 */
+.opp-deck-stack i:nth-of-type(3) {
+  background-image:
+    linear-gradient(180deg, rgba(12, 6, 20, 0.15), rgba(12, 6, 20, 0.55)),
+    var(--card-art, url('assets/bg/middle.webp'));
+  background-size: cover;
+  background-position: 50% 22%;
+  border-color: #b03a5b;
+  box-shadow: inset 0 0 0 1px rgba(255, 160, 190, 0.22), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.opp-deck-stack span { display: none; }
+.opp-deck-panel { --card-art: url('assets/bg/middle.webp'); }

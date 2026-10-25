@@ -46,6 +46,27 @@ function fresh(seed = 7) {
   return e;
 }
 
+
+function freshBoss(seed = 11) {
+  const e = new Engine({ seed, mode: 'boss' });
+  for (const side of ['player', 'ai']) {
+    const p = e.state.players[side];
+    p.hand = []; p.deck = []; p.discard = [];
+    p.mana = 4; p.maxMana = 4; p.winTarget = 7;
+    p.silenced = false; p.nextMana = 0; p.extraDraw = 0;
+  }
+  e.state.current = 'player';
+  e.state.phase = 'main';
+  e.state.status = 'playing';
+  e.state.placed = false;
+  e.state.cardsPlayedThisTurn = 0;
+  e.state.seals = {};
+  e.state.noDraft = true;
+  e.state.offer = null;
+  e.state.cells = e.makeBoard(20);
+  return e;
+}
+
 function put(e, side, r, c, doubled = false) {
   const stone = { uid: 's' + (++e.uid), owner: side, doubled, placedPly: e.state.ply };
   e.state.cells[r][c] = stone;
@@ -292,6 +313,71 @@ test('手牌超过 4 张必须弃牌；未落子不能结束回合', () => {
   assert.strictEqual(noDiscard.ok, false);
   e.discard('player', [e.state.players.player.hand[0].uid, e.state.players.player.hand[1].uid]);
   assert.strictEqual(e.state.players.player.hand.length, 4);
+});
+
+
+test('Boss 关：墨鸦有两条命', () => {
+  const e = freshBoss();
+  assert.strictEqual(e.state.boss.hp, 2);
+  assert.strictEqual(e.state.boss.maxHp, 2);
+  assert.strictEqual(e.state.mode, 'boss');
+});
+
+test('Boss 关：第一次七子只拆连珠、掉一条命、对局继续', () => {
+  const e = freshBoss();
+  for (let c = 0; c < 6; c++) put(e, 'player', 10, c);
+  const r = e.place('player', 10, 6);
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(e.state.status, 'playing', '第一条命不该结束对局');
+  assert.strictEqual(e.state.boss.hp, 1);
+  assert.strictEqual(e.state.winner, null);
+  for (let c = 0; c < 7; c++) {
+    assert.strictEqual(e.getStone(10, c), null, `连珠上的 (10,${c}) 应当被拆掉`);
+  }
+});
+
+test('Boss 关：第二条命才判完全胜利', () => {
+  const e = freshBoss();
+  e.state.boss.hp = 1;
+  for (let c = 0; c < 6; c++) put(e, 'player', 10, c);
+  const r = e.place('player', 10, 6);
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(e.state.status, 'over');
+  assert.strictEqual(e.state.winner, 'player');
+  assert.strictEqual(e.state.boss.hp, 0);
+});
+
+test('Boss 关：玩家第 2 次连成五子触发换营，星子归属互换', () => {
+  const e = freshBoss();
+  // 第一条五连（计为第 1 次，不换）
+  for (let c = 0; c < 5; c++) put(e, 'player', 10, c);
+  e.state.boss.count = 1;
+  e.state.boss.runs = e.collectRuns('player', 5);
+  // 第二条五连（第 2 次 → 换）
+  for (let c = 0; c < 4; c++) put(e, 'player', 15, c);
+  put(e, 'ai', 18, 18);
+  const r = e.place('player', 15, 4);
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(e.state.boss.swaps, 1);
+  assert.strictEqual(e.getStone(10, 0).owner, 'ai', '原来的玩家连珠应当变成墨鸦的');
+  assert.strictEqual(e.getStone(18, 18).owner, 'player', '墨鸦的孤子应当变成玩家的');
+});
+
+test('Boss 关：墨鸦占优时换营不发动', () => {
+  const e = freshBoss();
+  for (let c = 0; c < 5; c++) put(e, 'player', 10, c);
+  e.state.boss.count = 1;
+  e.state.boss.runs = e.collectRuns('player', 5);
+  for (let c = 0; c < 4; c++) put(e, 'player', 15, c);
+  for (let c = 0; c < 6; c++) { put(e, 'ai', 2, c); put(e, 'ai', 4, c); }
+  e.place('player', 15, 4);
+  assert.strictEqual(e.state.boss.swaps, 0);
+  assert.strictEqual(e.state.boss.suppressed, 1);
+});
+
+test('普通模式没有 Boss 状态', () => {
+  const e = fresh();
+  assert.strictEqual(e.state.boss, null);
 });
 
 console.log(`\n结果：${passed} 通过，${failed} 失败\n`);

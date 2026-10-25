@@ -6,7 +6,9 @@
   <meta name="theme-color" content="#160a33">
   <meta name="description" content="七曜牌局简化版：20×20 七子棋、13 张卡牌、4 体力与亮紫色像素界面。">
   <title>七曜牌局 · 简化版</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -21,17 +23,19 @@
 
     <header class="topbar">
       <div class="brand">
-        <span class="brand-sigil">✦</span>
+        <img class="brand-sigil" src="assets/favicon-192.png" alt="七曜牌局">
         <div class="brand-text">
           <strong>七曜牌局</strong>
           <span>SIMPLIFIED</span>
         </div>
       </div>
       <div class="turn-hud" id="turnHud">
+        <span class="mode-badge" id="modeBadge">进阶</span>
         <span class="turn-round" id="roundLabel">ROUND 01</span>
         <span class="turn-badge" id="turnBadge"><i></i>你的回合</span>
       </div>
       <div class="top-actions">
+        <button class="mini-btn" id="soundBtn" type="button" title="音乐/音效开关" aria-pressed="true">♪ 音乐</button>
         <button class="mini-btn" id="backBtn" type="button" title="返回标题">返回</button>
       </div>
     </header>
@@ -39,21 +43,22 @@
     <main class="battle" id="battle">
       <section class="opponent-strip" aria-label="对手信息">
         <div class="opp-identity">
-          <span class="opp-avatar" aria-hidden="true">✦</span>
+          <span class="opp-avatar" id="aiAvatar" aria-hidden="true">✦</span>
           <div>
             <b>墨鸦</b>
-            <small id="aiModeLabel">进阶</small>
+            <small id="aiModeLabel"></small>
           </div>
         </div>
         <div class="opp-stat"><span>手牌</span><b id="aiHandCount">4</b></div>
         <div class="opp-stat"><span>体力</span><b id="aiManaText">4/4</b></div>
         <div class="opp-stat"><span>胜利</span><b id="aiGoal">七子</b></div>
+        <div class="opp-stat boss-hp" id="bossHpBox" hidden><span>命</span><b id="bossHp">◆◆</b></div>
         <div class="opp-status" id="aiStatus">静静地等待</div>
       </section>
 
       <div class="tutorial-hud" id="tutorialHud" hidden>
         <div class="tutorial-top">
-          <span class="tutorial-tag">基础教程</span>
+          <span class="tutorial-tag">新手教程</span>
           <b id="tutorialTitle">界面 1 / 5 · 获胜目标</b>
           <span id="tutorialProgress">界面 1 / 5</span>
         </div>
@@ -117,7 +122,7 @@
       </section>
 
       <aside class="right-rail" aria-label="对手与记录">
-        <section class="opp-deck-panel">
+        <section class="opp-deck-panel" id="oppDeckPanel">
           <div class="opp-deck-head">
             <span>墨鸦手牌</span>
             <b id="aiRailCount">4</b>
@@ -173,6 +178,8 @@
         <div class="deco-card deco-c" data-card="ruin"><span>爆</span><b>崩星</b><small>棋子操作</small></div>
         <div class="deco-card deco-d" data-card="silence"><span>锁</span><b>封锁</b><small>特殊</small></div>
       </div>
+      <div class="title-art" id="titleArt" aria-hidden="true"></div>
+      <div class="title-scrim" aria-hidden="true"></div>
       <div class="title-content">
         <p class="title-kicker">✦ 20×20 · 七子/六子 · 13 张卡 ✦</p>
         <h1 class="title-logo">
@@ -180,7 +187,6 @@
           <span class="logo-en">SEVENFOLD</span>
         </h1>
         <p class="title-tagline">七子连珠 · 六子改胜。</p>
-        <p class="title-desc">4 点体力，13 张卡牌，一回合落一子。<br>默认七子连珠；「六子改胜」可把目标改为六子。</p>
 
         <div class="mode-grid" role="group" aria-label="选择模式">
           <button class="mode-btn" type="button" data-mode="easy">
@@ -200,13 +206,33 @@
           </button>
           <button class="mode-btn tutorial" type="button" id="tutorialBtn">
             <span class="mode-glyph">◎</span>
-            <b>基础教程</b>
+            <b>新手教程</b>
             <small>5 步说明 · 补给练习 · 4 章引导</small>
           </button>
         </div>
-        <button class="title-codex" id="codexBtn" type="button">
-          <span>✦</span> 卡牌图鉴 <b>13</b>
-        </button>
+
+        <div class="mode-sub" role="group" aria-label="进阶玩法">
+          <button class="mode-btn is-compact boss" type="button" data-mode="boss">
+            <img class="mode-thumb" src="assets/boss-card.png" alt="">
+            <span class="mode-sub-text"><b>Boss</b><small>两条命 · 换营</small></span>
+          </button>
+          <button class="mode-btn is-compact llm" type="button" data-mode="llm">
+            <span class="mode-glyph">◈</span>
+            <span class="mode-sub-text"><b>挑战 LLM</b><small>对云端模型</small></span>
+          </button>
+          <button class="mode-btn is-compact llm" type="button" data-mode="llmpk">
+            <span class="mode-glyph">⟁</span>
+            <span class="mode-sub-text"><b>LLM 对战</b><small>看两个模型互搏</small></span>
+          </button>
+        </div>
+        <div class="title-actions">
+          <button class="title-codex" id="codexBtn" type="button">
+            <span>✦</span> 卡牌图鉴 <b>13</b>
+          </button>
+          <button class="title-codex title-llm" id="llmSettingsBtn" type="button">
+            <span>◈</span> LLM 设置 <b id="llmSettingsState">未配置</b>
+          </button>
+        </div>
         <p class="title-footer">FUSION PIXEL · CLASSIC EDITION v2.0</p>
       </div>
     </div>
@@ -270,6 +296,18 @@
       </section>
     </div>
 
+    <div class="llm-error" id="llmError" hidden>
+      <div class="llm-error-box">
+        <p class="eyebrow">LLM 掉线</p>
+        <h3 id="llmErrorTitle">模型没有回应</h3>
+        <p id="llmErrorText"></p>
+        <div class="llm-error-actions">
+          <button type="button" id="llmRetryBtn">重试</button>
+          <button type="button" id="llmAbortBtn" class="ghost">结束对局</button>
+        </div>
+      </div>
+    </div>
+
     <div class="toast-layer" id="toastLayer" aria-live="assertive"></div>
   </div>
 
@@ -277,6 +315,7 @@
   <script src="js/engine.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/sound.js"></script>
+  <script src="js/llm.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>

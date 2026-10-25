@@ -9,7 +9,23 @@
   const SoundManager = window.SevenfoldSound && window.SevenfoldSound.SoundManager;
 
   const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const MODE_LABEL = { easy: '基础', normal: '进阶', hard: '困难', tutorial: '教程' };
+  const MODE_LABEL = { easy: '基础', normal: '进阶', hard: '困难', boss: 'Boss', tutorial: '教程', llm: '挑战 LLM', llmpk: 'LLM 对战' };
+  // 每个模式里两个座位分别由谁操作：human / ai（本地） / llm（云端）
+  const MODE_SEATS = {
+    easy: { player: 'human', ai: 'ai' },
+    normal: { player: 'human', ai: 'ai' },
+    hard: { player: 'human', ai: 'ai' },
+    boss: { player: 'human', ai: 'ai' },
+    tutorial: { player: 'human', ai: 'ai' },
+    llm: { player: 'human', ai: 'llm' },
+    llmpk: { player: 'llm', ai: 'llm' }
+  };
+  const LLM_STORE = 'sevenfold.llm';
+  // 难度 → 立绘（第 4/5/6 张图分别是 基础/困难/进阶，Boss 用自己的）
+  const MODE_ART = {
+    easy: 'easy', normal: 'middle', hard: 'hard', boss: 'boss',
+    llm: 'hard', llmpk: 'hard', tutorial: 'middle'
+  };
 
   const TUTORIAL_INTRO = [
     {
@@ -315,16 +331,23 @@
       this.resultShown = false;
       this.resultTimer = null;
       this.logs = [];
+      this.seatKind = { player: 'human', ai: 'ai' };
+      this.llmConfig = this.loadLLMConfig();
+      this.llmRunning = false;
+      this.llmError = null;
       this._renderRaf = null;
       this._lastBoardSize = 0;
       this.boardEls = [];
-      this.sound = SoundManager ? new SoundManager() : null;
+      this.soundMuted = localStorage.getItem('sevenfold.muted') === '1';
+      this.sound = SoundManager ? new SoundManager({ muted: this.soundMuted }) : null;
 
       this.cacheDom();
       this.dom.app.classList.add('is-title');
       this.renderStars();
       this.renderTitleDeco();
       this.bindEvents();
+      this.applyArt('normal');
+      this.renderLLMState();
       this.renderAll();
     }
 
@@ -335,6 +358,9 @@
         turnBadge: $('#turnBadge'),
         backBtn: $('#backBtn'),
         aiModeLabel: $('#aiModeLabel'),
+        aiAvatar: $('#aiAvatar'),
+        bossHpBox: $('#bossHpBox'),
+        bossHp: $('#bossHp'),
         aiHandCount: $('#aiHandCount'),
         aiRailCount: $('#aiRailCount'),
         aiRailDeckCount: $('#aiRailDeckCount'),
@@ -466,9 +492,33 @@
       });
       $$('.mode-btn[data-mode]').forEach(btn => {
         btn.addEventListener('click', () => this.startGame(btn.dataset.mode));
+        const preview = () => this.applyArt(btn.dataset.mode);
+        btn.addEventListener('mouseenter', preview);
+        btn.addEventListener('focus', preview);
       });
+      if (this.dom.titleScreen) {
+        this.dom.titleScreen.addEventListener('mouseleave', () => this.applyArt(this.mode));
+      }
       this.dom.tutorialBtn.addEventListener('click', () => this.startTutorial());
       this.dom.backBtn.addEventListener('click', () => this.backToTitle());
+      if (this.dom.soundBtn) {
+        const paint = () => {
+          const muted = !!(this.sound && this.sound.muted);
+          this.dom.soundBtn.textContent = muted ? '♪ 静音' : '♪ 音乐';
+          this.dom.soundBtn.setAttribute('aria-pressed', String(!muted));
+        };
+        paint();
+        this.dom.soundBtn.addEventListener('click', () => {
+          if (!this.sound) return;
+          this.sound.setMuted(!this.sound.muted);
+          localStorage.setItem('sevenfold.muted', this.sound.muted ? '1' : '0');
+          paint();
+          if (!this.sound.muted) this.playSound('select');
+        });
+      }
+      if (this.dom.llmSettingsBtn) this.dom.llmSettingsBtn.addEventListener('click', () => this.openLLMSettings());
+      if (this.dom.llmRetryBtn) this.dom.llmRetryBtn.addEventListener('click', () => this.retryLLM());
+      if (this.dom.llmAbortBtn) this.dom.llmAbortBtn.addEventListener('click', () => this.abortLLM());
       this.dom.tutorialRestart.addEventListener('click', () => this.startTutorial());
       this.dom.tutorialExit.addEventListener('click', () => this.backToTitle());
       this.dom.tutorialNext.addEventListener('click', () => this.tutorialNext());
@@ -658,14 +708,26 @@
     startGame(mode) {
       this.playSound('start');
       this.mode = MODE_LABEL[mode] ? mode : 'normal';
+      this.seatKind = { ...(MODE_SEATS[this.mode] || MODE_SEATS.normal) };
+      // LLM 模式必须先配好座位，否则不开局（绝不偷偷退回本地 AI）
+      const needLLM = ['player', 'ai'].filter(side => this.seatKind[side] === 'llm');
+      const missing = needLLM.filter(side => !this.llmReady(side));
+      if (missing.length) {
+        this.openLLMSettings(missing);
+        this.toast('先填好 LLM 的接口和密钥', 'danger');
+        return;
+      }
       this.closeOverlays();
       this.dom.app.classList.remove('is-title');
       window.scrollTo(0, 0);
       this.dom.titleScreen.classList.add('is-leaving');
       setTimeout(() => { this.dom.titleScreen.hidden = true; }, 260);
-      this.engine = new Engine({ seed: (Date.now() ^ 0x5f3759df) >>> 0 });
+      this.engine = new Engine({
+        seed: (Date.now() ^ 0x5f3759df) >>> 0,
+        mode: this.mode === 'boss' ? 'boss' : 'normal'
+      });
       this.ai = new AI(this.engine, {
-        difficulty: this.mode,
+        difficulty: ['boss', 'llm', 'llmpk'].includes(this.mode) ? 'hard' : this.mode,
         seed: (Date.now() ^ 0xa5a5a5a5) >>> 0
       });
       this.engineSub = this.engine.onEvent(event => this.onEngineEvent(event));
@@ -684,10 +746,17 @@
       this.dom.fxToast.classList.remove('is-show');
       this.dom.board.classList.remove('is-shaking');
       this.renderAll();
+      this.applyArt(this.mode);
+      if (this.sound) this.sound.playBgm('battle');
       this.addLog(`模式：${MODE_LABEL[this.mode]} · 20×20 · 13 张牌`, 'system');
+      if (this.mode === 'boss') {
+        this.addLog('Boss 关：墨鸦有两条命。你每拆掉它一条命，连珠会被一并拆散；第 2、4、6… 次连成五子时它会跟你换营——除非它已经占优。', 'system');
+      }
       this.addLog('你执星火，先手。每回合 4 选 2，体力 4 点，落一子。', 'system');
       this.toast(`对局开始 · ${MODE_LABEL[this.mode]}`, 'player');
-      const openingOffer = this.engine.state.phase === 'draft' ? this.engine.state.offer : null;
+      const openingOffer = this.seatKind.player === 'human' && this.engine.state.phase === 'draft'
+        ? this.engine.state.offer
+        : null;
       const session = this.sessionId;
       if (openingOffer) {
         setTimeout(() => {
@@ -697,6 +766,7 @@
           }
         }, 320);
       }
+      this.maybeDriveTurn();
     }
 
     startTutorial() {
@@ -880,6 +950,8 @@
     }
 
     backToTitle() {
+      if (this.sound) this.sound.stopBgm({ fade: 300 });
+      this.applyArt(this.mode);
       this.abandoned = true;
       this.sessionId++;
       this.busy = false;
@@ -1034,6 +1106,7 @@
 
     handleGameOver(event) {
       if (this.resultShown || this.abandoned) return;
+      if (this.sound) this.sound.stopBgm({ fade: 900 });
       this.busy = false;
       this.aiRunning = false;
       this.selection = null;
@@ -1076,11 +1149,14 @@
       const won = event.winner === 'player';
       const lost = event.winner === 'ai';
       const target = event.win?.target || 7;
-      this.dom.resultKicker.textContent = won ? 'VICTORY' : lost ? 'DEFEAT' : 'DRAW';
-      this.dom.resultTitle.textContent = won ? (target === 6 ? '六星归位' : '七星归位') : lost ? '星火熄灭' : '星盘无声';
+      const bossClear = won && state.mode === 'boss';
+      this.dom.resultKicker.textContent = bossClear ? 'BOSS CLEARED' : won ? 'VICTORY' : lost ? 'DEFEAT' : 'DRAW';
+      this.dom.resultTitle.textContent = bossClear
+        ? '两条命都打穿了'
+        : won ? (target === 6 ? '六星归位' : '七星归位') : lost ? '星火熄灭' : '星盘无声';
       this.dom.resultTitle.className = `result-title${lost ? ' is-loss' : ''}`;
       this.dom.resultSub.textContent = won
-        ? `你在第 ${state.round} 回合完成 ${target} 子连珠。`
+        ? (bossClear ? `你在第 ${state.round} 回合把墨鸦的两条命都打掉了（最后一击 ${target} 子连珠）。` : `你在第 ${state.round} 回合完成 ${target} 子连珠。`)
         : lost
           ? `墨鸦在第 ${state.round} 回合完成 ${target} 子连珠。`
           : '棋盘已满，双方都没能改写结局。';
@@ -1102,7 +1178,7 @@
       this.resultShown = true;
       const won = event && event.winner === 'player';
       this.dom.resultKicker.textContent = won ? 'TUTORIAL CLEAR' : 'TUTORIAL RETRY';
-      this.dom.resultTitle.textContent = won ? '基础教程完成' : '再试一次';
+      this.dom.resultTitle.textContent = won ? '新手教程完成' : '再试一次';
       this.dom.resultTitle.className = `result-title${won ? '' : ' is-loss'}`;
       this.dom.resultSub.textContent = won
         ? '看费用、管理体力、理解目标、抓住胜机。你已经完成界面认识与四章引导对局。'
@@ -1124,7 +1200,11 @@
     requestRender() {
       if (this._renderRaf) return;
       this._renderRaf = requestAnimationFrame(() => {
-        this._renderRaf = null;
+        this.seatKind = { player: 'human', ai: 'ai' };
+      this.llmConfig = this.loadLLMConfig();
+      this.llmRunning = false;
+      this.llmError = null;
+      this._renderRaf = null;
         this.renderAll();
       });
     }
@@ -1165,7 +1245,11 @@
         this.dom.turnBadge.innerHTML = '<i></i>对局结束';
       } else if (s.current === 'ai') {
         this.dom.turnBadge.className = 'turn-badge is-ai';
-        this.dom.turnBadge.innerHTML = `<i></i>${this.aiRunning ? '墨鸦思考中' : '墨鸦回合'}`;
+        const thinking = this.aiRunning || this.llmRunning;
+        const who = this.getSeatKind('ai') === 'llm'
+          ? (this.llmConfig.ai?.model || 'LLM')
+          : '墨鸦';
+        this.dom.turnBadge.innerHTML = `<i></i>${thinking ? `${who} 思考中` : `${who}回合`}`;
       } else if (s.phase === 'draft') {
         this.dom.turnBadge.className = 'turn-badge is-draft';
         this.dom.turnBadge.innerHTML = '<i></i>补给选择';
@@ -1305,14 +1389,39 @@
     renderOpponent() {
       const s = this.engine.state;
       const a = s.players.ai;
-      this.dom.aiModeLabel.textContent = MODE_LABEL[this.mode] || '进阶';
+      const avatar = this.dom.aiAvatar || this.dom.oppAvatar;
+      if (avatar) {
+        const isBoss = this.mode === 'boss';
+        avatar.classList.toggle('is-boss', isBoss);
+        avatar.textContent = isBoss ? '' : '✦';
+      }
+      const aiSeat = this.getSeatKind('ai');
+      if (aiSeat === 'llm') {
+        this.dom.aiModeLabel.textContent = `云端 · ${this.llmConfig.ai?.model || '未配置'}`;
+        this.dom.aiModeLabel.hidden = false;
+      } else {
+        this.dom.aiModeLabel.textContent = '';     // 难度只在顶栏徽章上标，名字下面不重复
+        this.dom.aiModeLabel.hidden = true;
+      }
+      if (this.dom.bossHpBox) {
+        const boss = s.boss;
+        this.dom.bossHpBox.hidden = !boss;
+        if (boss) {
+          if (this.dom.bossHp) {
+            this.dom.bossHp.textContent = '◆'.repeat(Math.max(0, boss.hp)) + '◇'.repeat(Math.max(0, boss.maxHp - boss.hp));
+          }
+        }
+      }
       this.dom.aiHandCount.textContent = a.hand.length;
       if (this.dom.aiRailCount) this.dom.aiRailCount.textContent = a.hand.length;
       if (this.dom.aiRailDeckCount) this.dom.aiRailDeckCount.textContent = a.deck.length;
       this.dom.aiManaText.textContent = `${a.mana}/${this.engine.rules.maxMana}`;
       this.dom.aiGoal.textContent = a.winTarget === 6 ? '六子' : '七子';
       if (a.silenced) this.dom.aiStatus.textContent = '被封锁 · 下一张牌失效';
-      else if (s.current === 'ai') this.dom.aiStatus.textContent = this.aiRunning ? '正在推演' : '墨鸦回合';
+      else if (s.current === 'ai') {
+        this.dom.aiStatus.textContent = this.llmRunning ? '云端思考中…'
+          : this.aiRunning ? '正在推演' : '墨鸦回合';
+      }
       else this.dom.aiStatus.textContent = a.winTarget === 6 ? '六子连珠' : '静静等待';
     }
 
@@ -1340,7 +1449,8 @@
         return;
       }
       const tutorialCard = this.tutorial ? this.tutorialRequiredCard() : null;
-      const canAct = s.current === 'player' && s.phase === 'main' && !this.busy && !this.aiRunning;
+      const canAct = s.current === 'player' && s.phase === 'main' && !this.busy && !this.aiRunning
+        && this.getSeatKind('player') === 'human';
       const targetingHand = !!(this.selection
         && BY_ID[this.selection.cardId]
         && BY_ID[this.selection.cardId].target === 'handCard'
@@ -1414,7 +1524,8 @@
     renderActions() {
       const s = this.engine.state;
       const p = s.players.player;
-      const canAct = s.status === 'playing' && s.current === 'player' && s.phase === 'main' && !this.busy && !this.aiRunning;
+      const canAct = s.status === 'playing' && s.current === 'player' && s.phase === 'main' && !this.busy && !this.aiRunning
+        && this.getSeatKind('player') === 'human';
       const canEnd = canAct && s.placed && !this.selection;
       this.dom.endTurnBtn.disabled = !canEnd;
       this.dom.cancelBtn.hidden = !this.selection;
@@ -1529,6 +1640,8 @@
     }
 
     onHandCardClick(uid) {
+      if (this.getSeatKind('player') !== 'human') return;
+
       if (!this.engine || this.busy || this.engine.state.phase !== 'main') return;
       if (this.engine.state.current !== 'player') return;
       if (this.selection && this.selection.cardId === 'discount' && this.selection.stage === 'handTarget') {
@@ -1592,6 +1705,8 @@
     }
 
     onBoardClick(r, c) {
+      if (this.getSeatKind('player') !== 'human') return;
+
       if (!this.engine || this.busy) return;
       if (this.tutorial) {
         this.onTutorialBoardClick(r, c);
@@ -1693,6 +1808,8 @@
     }
 
     endPlayerTurn() {
+      if (this.getSeatKind('player') !== 'human') return;
+
       if (!this.engine || this.busy) return;
       const s = this.engine.state;
       if (s.current !== 'player' || s.phase !== 'main') return;
@@ -1731,7 +1848,7 @@
       this.hoverCard = null;
       this.renderAll();
       if (this.tutorial) this.runTutorialAI();
-      else this.runAI();
+      else this.maybeDriveTurn();
     }
 
     openDiscard() {
@@ -1835,6 +1952,8 @@
     }
 
     handleOfferClick(index) {
+      if (this.getSeatKind('player') !== 'human') return;
+
       if (index < 0 || index >= this.offerCards.length) return;
       if (this.offerPicks.has(index)) {
         this.offerPicks.delete(index);
@@ -1868,6 +1987,289 @@
       this.dom.offerScreen.hidden = true;
       this.playSound('modal', { delay: 80 });
       this.renderAll();
+    }
+
+    /* ---------------- LLM 座位 ---------------- */
+
+    loadLLMConfig() {
+      try {
+        const raw = localStorage.getItem(LLM_STORE);
+        const data = raw ? JSON.parse(raw) : {};
+        return {
+          player: data.player || null,
+          ai: data.ai || null
+        };
+      } catch (err) {
+        return { player: null, ai: null };
+      }
+    }
+
+    saveLLMConfig(config) {
+      this.llmConfig = { player: config.player, ai: config.ai };
+      try { localStorage.setItem(LLM_STORE, JSON.stringify(this.llmConfig)); } catch (err) { /* 隐私模式下写不了就算了 */ }
+    }
+
+    // 标题屏背景 + 墨鸦卡背跟着模式换
+    applyArt(mode) {
+      const art = MODE_ART[mode] || 'middle';
+      const url = `url('assets/bg/${art}.webp')`;
+      if (this.dom.titleArt) this.dom.titleArt.style.setProperty('--title-art', url);
+      if (this.dom.oppDeckPanel) this.dom.oppDeckPanel.style.setProperty('--card-art', url);
+      if (this.dom.modeBadge) {
+        const label = MODE_LABEL[mode] || MODE_LABEL.normal;
+        this.dom.modeBadge.textContent = label;
+        this.dom.modeBadge.className = `mode-badge${mode === 'boss' ? ' is-boss' : ''}${mode === 'llm' || mode === 'llmpk' ? ' is-llm' : ''}`;
+      }
+    }
+
+    getSeatKind(side) {
+      return (this.seatKind && this.seatKind[side]) || 'human';
+    }
+
+    llmReady(side) {
+      const cfg = this.llmConfig[side];
+      return !!(cfg && cfg.baseURL && cfg.model && cfg.apiKey);
+    }
+
+    // 轮到谁：本地 AI 就走 AI，云端就走 LLM，人类就等点击
+    maybeDriveTurn() {
+      if (!this.engine || this.abandoned || this.resultShown) return;
+      const s = this.engine.state;
+      if (s.status !== 'playing') return;
+      const kind = this.getSeatKind(s.current);
+      if (kind === 'ai') this.runAI();
+      else if (kind === 'llm') this.runLLMTurn(s.current);
+    }
+
+    async runLLMTurn(side) {
+      if (this.llmRunning || !this.engine) return;
+      const cfg = this.llmConfig[side];
+      if (!cfg || !cfg.baseURL || !cfg.model || !cfg.apiKey) {
+        this.openLLMSettings();
+        this.toast('先填好 LLM 的接口和密钥', 'danger');
+        return;
+      }
+      const session = this.sessionId;
+      const label = side === 'player' ? '星火' : '墨鸦';
+      const seat = new window.SevenfoldLLM.LLMSeat(this.engine, side, cfg);
+      const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+      this.llmRunning = true;
+      this.busy = true;
+      this.llmError = null;
+      this.dom.llmError.hidden = true;
+      this.renderAll();
+      try {
+        // 补给（只有玩家侧会进 draft 阶段）
+        if (this.engine.state.phase === 'draft' && this.engine.state.offer) {
+          const draft = await seat.decideDraft();
+          if (session !== this.sessionId) return;
+          const res = this.engine.chooseOffer(draft.picks);
+          if (!res.ok) throw new window.SevenfoldLLM.LLMError('illegal', res.reason);
+          await sleep(420);
+        }
+        const plan = await seat.decideTurn();
+        if (session !== this.sessionId) return;
+        this.addLog(`${label}（${cfg.model}）：${plan.why || '（没写理由）'}`, side);
+        for (const card of plan.cards) {
+          if (this.engine.state.status !== 'playing') break;
+          const res = this.engine.playCard(side, card.uid, card.payload);
+          if (!res.ok) throw new window.SevenfoldLLM.LLMError('illegal', `引擎拒绝了 ${card.id}：${res.reason}`);
+          await sleep(620);
+        }
+        if (this.engine.state.status === 'playing' && plan.place) {
+          const res = this.engine.place(side, plan.place.r, plan.place.c);
+          if (!res.ok) throw new window.SevenfoldLLM.LLMError('illegal', `落子被拒：${res.reason}`);
+          await sleep(420);
+        }
+        if (this.engine.state.status === 'playing') {
+          const p = this.engine.state.players[side];
+          const limit = this.engine.rules.handLimit;
+          if (p.hand.length > limit) {
+            const need = p.hand.length - limit;
+            const want = (plan.discard || []).filter(uid => p.hand.some(entry => entry.uid === uid));
+            for (const entry of p.hand) {
+              if (want.length >= need) break;
+              if (!want.includes(entry.uid)) want.push(entry.uid);
+            }
+            this.engine.discard(side, want.slice(0, need));
+          }
+          this.engine.endTurn(side);
+        }
+      } catch (err) {
+        if (session === this.sessionId) this.showLLMError(side, err);
+      } finally {
+        if (session === this.sessionId) {
+          this.llmRunning = false;
+          this.busy = false;
+          this.renderAll();
+          if (!this.llmError) this.maybeDriveTurn();
+        }
+      }
+    }
+
+    showLLMError(side, err) {
+      const label = side === 'player' ? '星火' : '墨鸦';
+      const code = err && err.code ? err.code : 'unknown';
+      const titles = {
+        config: '配置不完整',
+        network: '连不上模型',
+        http: '接口返回错误',
+        parse: '输出解析失败',
+        illegal: '模型下出了非法的一步',
+        unknown: '出了点问题'
+      };
+      this.llmError = { side, code, message: err && err.message ? err.message : String(err) };
+      this.dom.llmErrorTitle.textContent = `${label} · ${titles[code] || titles.unknown}`;
+      this.dom.llmErrorText.textContent = this.llmError.message + (err && err.detail ? `\n${String(err.detail).slice(0, 200)}` : '');
+      this.dom.llmError.hidden = false;
+      this.playSound('deny');
+      this.addLog(`${label} 出错：${this.llmError.message}`, 'system');
+    }
+
+    retryLLM() {
+      this.dom.llmError.hidden = true;
+      this.llmError = null;
+      this.maybeDriveTurn();
+    }
+
+    abortLLM() {
+      if (this.sound) this.sound.stopBgm({ fade: 600 });
+      this.dom.llmError.hidden = true;
+      this.llmError = null;
+      this.abandoned = true;
+      this.aiRunning = false;
+      this.llmRunning = false;
+      this.busy = false;
+      this.addLog('LLM 掉线，本局中止。', 'system');
+      this.toast('本局中止', 'danger');
+      this.renderAll();
+    }
+
+    openLLMSettings(focus = []) {
+      const LLM = window.SevenfoldLLM;
+      if (!LLM) return;
+      const presets = LLM.PRESETS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      const seatForm = (side, title, hint) => {
+        const cfg = this.llmConfig[side] || {};
+        return `
+        <section class="llm-seat" data-seat="${side}">
+          <header><b>${title}</b><small>${hint}</small></header>
+          <label class="llm-field"><span>服务商</span>
+            <select data-preset="${side}">${presets}</select>
+          </label>
+          <label class="llm-field"><span>Base URL</span>
+            <input data-base="${side}" value="${escapeHtml(cfg.baseURL || '')}" placeholder="https://api.deepseek.com/v1" spellcheck="false">
+          </label>
+          <label class="llm-field"><span>模型</span>
+            <input data-model="${side}" value="${escapeHtml(cfg.model || '')}" placeholder="deepseek-chat" spellcheck="false">
+          </label>
+          <label class="llm-field"><span>API Key</span>
+            <input data-key="${side}" type="password" value="${escapeHtml(cfg.apiKey || '')}" placeholder="sk-..." spellcheck="false" autocomplete="off">
+          </label>
+          <label class="llm-check"><input type="checkbox" data-thinking="${side}" ${cfg.thinking ? 'checked' : ''}> 开启思考模式（更慢，更容易被截断）</label>
+          <div class="llm-seat-actions">
+            <button type="button" data-test="${side}">测试连接</button>
+            <span class="llm-status" data-status="${side}"></span>
+          </div>
+        </section>`;
+      };
+      this.dom.modalKicker.textContent = 'LLM SEATS';
+      this.dom.modalTitle.textContent = 'LLM 对战设置';
+      this.dom.modalBody.innerHTML = `
+        <p class="llm-warn">密钥只存在你这台机器的浏览器里（localStorage），不会上传到任何服务器；但 GitHib Pages 是公开页面，别把密钥分享给别人。</p>
+        <div class="llm-form">
+          ${seatForm('player', '星火（你 / 左）', '人 vs LLM 时用不到这一栏')}
+          ${seatForm('ai', '墨鸦（对面 / 右）', '人 vs LLM / LLM 对战都要填')}
+        </div>
+        <p class="llm-note">浏览器直连需要服务商返回 CORS 头：DeepSeek / MiniMax / 小米可用，智谱直连会被浏览器拦。</p>
+        <div class="llm-form-actions">
+          <button type="button" id="llmSaveBtn">保存</button>
+          <span class="llm-status" id="llmSaveHint"></span>
+        </div>`;
+      this.dom.modal.hidden = false;
+      this.playSound('modal');
+      this.bindLLMForm();
+      if (focus.length) {
+        const first = focus[0];
+        const input = this.dom.modalBody.querySelector(`[data-base="${first}"]`);
+        if (input) input.focus();
+      }
+    }
+
+    bindLLMForm() {
+      const LLM = window.SevenfoldLLM;
+      const body = this.dom.modalBody;
+      body.querySelectorAll('[data-preset]').forEach(select => {
+        const side = select.dataset.preset;
+        const cfg = this.llmConfig[side];
+        if (cfg && cfg.preset) select.value = cfg.preset;
+        select.addEventListener('change', () => {
+          const preset = LLM.PRESETS.find(p => p.id === select.value);
+          if (!preset) return;
+          const base = body.querySelector(`[data-base="${side}"]`);
+          const model = body.querySelector(`[data-model="${side}"]`);
+          if (base && preset.baseURL) base.value = preset.baseURL;
+          if (model && preset.model) model.value = preset.model;
+        });
+      });
+      body.querySelectorAll('[data-test]').forEach(btn => {
+        const side = btn.dataset.test;
+        btn.addEventListener('click', async () => {
+          const status = body.querySelector(`[data-status="${side}"]`);
+          const cfg = this.readLLMSeat(side);
+          if (!cfg.baseURL || !cfg.apiKey) {
+            status.textContent = '先填 Base URL 和密钥';
+            status.className = 'llm-status is-bad';
+            return;
+          }
+          btn.disabled = true;
+          status.textContent = '连接中…';
+          status.className = 'llm-status';
+          try {
+            const models = await LLM.listModels({ baseURL: cfg.baseURL, apiKey: cfg.apiKey });
+            status.textContent = `连上了，${models.length} 个模型可用（${models.slice(0, 3).join(' / ')}${models.length > 3 ? ' …' : ''}）`;
+            status.className = 'llm-status is-good';
+          } catch (err) {
+            status.textContent = (err.message || '连不上') + (err.code === 'network' ? '（可能是 CORS 或地址不对）' : '');
+            status.className = 'llm-status is-bad';
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+      const saveBtn = body.querySelector('#llmSaveBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          const next = { player: this.readLLMSeat('player'), ai: this.readLLMSeat('ai') };
+          this.saveLLMConfig(next);
+          const hint = body.querySelector('#llmSaveHint');
+          if (hint) { hint.textContent = '已保存'; hint.className = 'llm-status is-good'; }
+          this.dom.modal.hidden = true;
+          this.applyArt('normal');
+      this.renderLLMState();
+          this.toast('LLM 设置已保存', 'player');
+        });
+      }
+    }
+
+    readLLMSeat(side) {
+      const body = this.dom.modalBody;
+      const q = sel => body.querySelector(`[data-${sel}="${side}"]`);
+      const presetEl = q('preset');
+      return {
+        preset: presetEl ? presetEl.value : 'custom',
+        baseURL: (q('base')?.value || '').trim(),
+        model: (q('model')?.value || '').trim(),
+        apiKey: (q('key')?.value || '').trim(),
+        thinking: !!(q('thinking') && q('thinking').checked)
+      };
+    }
+
+    renderLLMState() {
+      const el = this.dom.llmSettingsState;
+      if (!el) return;
+      const ready = [this.llmReady('player'), this.llmReady('ai')].filter(Boolean).length;
+      el.textContent = ready === 2 ? '两台已配置' : ready === 1 ? '一台已配置' : '未配置';
     }
 
     async runAI() {

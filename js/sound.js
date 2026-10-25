@@ -41,6 +41,11 @@
   };
 
 
+  const BGM = {
+    battle: 'assets/audio/bgm/battle-loop.mp3'
+  };
+  const BGM_VOLUME = 0.34;      // 压住音乐，别盖过落子和术式
+
   class SoundManager {
     constructor(options = {}) {
       this.volume = Number.isFinite(options.volume) ? options.volume : 0.68;
@@ -54,6 +59,46 @@
       for (const pool of this.pools.values()) {
         for (const audio of pool) audio.muted = this.muted;
       }
+      if (this.bgm) this.bgm.muted = this.muted;
+    }
+
+    // 对战音乐：循环播放，静音时跟着静音
+    playBgm(name = 'battle') {
+      if (typeof Audio === 'undefined' || !BGM[name]) return null;
+      if (this.bgm) {
+        if (!this.bgm.paused) return this.bgm;
+        const retry = this.bgm.play();
+        if (retry && typeof retry.catch === 'function') retry.catch(() => {});
+        return this.bgm;
+      }
+      const audio = new Audio(encodeURI(BGM[name]));
+      audio.loop = true;
+      audio.preload = 'auto';
+      audio.volume = this.muted ? 0 : BGM_VOLUME;
+      audio.muted = this.muted;
+      this.bgm = audio;
+      const playback = audio.play();
+      if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+      return audio;
+    }
+
+    stopBgm(options = {}) {
+      if (!this.bgm) return;
+      const fade = Number(options.fade) || 0;
+      const target = this.bgm;
+      if (fade > 0) {
+        const step = BGM_VOLUME / (fade / 40);
+        const timer = setInterval(() => {
+          if (!target.volume) return clearInterval(timer);
+          target.volume = Math.max(0, target.volume - step);
+        }, 40);
+        setTimeout(() => {
+          clearInterval(timer);
+          try { target.pause(); target.currentTime = 0; } catch (_) { /* ignore */ }
+        }, fade);
+        return;
+      }
+      try { target.pause(); target.currentTime = 0; } catch (_) { /* ignore */ }
     }
 
     play(name, options = {}) {

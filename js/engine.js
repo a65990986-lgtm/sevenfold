@@ -25,7 +25,9 @@
     maxMana: 4,
     handLimit: 4,
     draftCount: 4,
-    draftPick: 2
+    draftPick: 2,
+    bossHp: 2,               // Boss 关：墨鸦有两条命
+    campSwapRun: 5           // 换营权能：玩家连成 5 子算一次
   };
 
   const DIRECTIONS = [[0, 1], [1, 0], [1, 1], [1, -1]];
@@ -91,6 +93,17 @@
         cardsPlayedThisTurn: 0,
         winner: null,
         winLine: null,
+        mode: options.mode === 'boss' ? 'boss' : 'normal',
+        boss: options.mode === 'boss'
+          ? {
+            hp: this.rules.bossHp,
+            maxHp: this.rules.bossHp,
+            runs: new Set(),
+            count: 0,
+            swaps: 0,
+            suppressed: 0
+          }
+          : null,
         offer: null,
         aiOffer: null,
         seals: {},
@@ -537,6 +550,7 @@
           this.emit('twinApplied', { side, at: { r: payload.r, c: payload.c } });
           const win = this.resolveWins(side, 'twin');
           if (win) result.win = win;
+          else this.maybeCampSwap(side);
           break;
         }
         case 'shift': {
@@ -550,6 +564,7 @@
           this.emit('stoneMoved', { side, from: result.from, to: result.to });
           const win = this.resolveWins(side, 'move');
           if (win) result.win = win;
+          else this.maybeCampSwap(side);
           break;
         }
         case 'ruin': {
@@ -574,6 +589,7 @@
           this.emit('detonated', { side, center: { r: payload.r, c: payload.c }, removed });
           const win = this.resolveWins(side, 'ruin');
           if (win) result.win = win;
+          else this.maybeCampSwap(side);
           break;
         }
         case 'swap': {
@@ -585,10 +601,15 @@
           result.second = { ...payload.second };
           this.emit('swapped', { side, first: payload.first, second: payload.second });
           const win = this.resolveWins(side, 'swap');
-          if (win) result.win = win;
-          else {
-            const oppWin = this.resolveWins(opposite(side), 'swap');
-            if (oppWin) result.win = oppWin;
+          if (win) {
+            result.win = win;
+          } else {
+            const campSwap = this.maybeCampSwap(side);
+            if (campSwap) result.campSwap = campSwap;
+            if (this.state.status === 'playing') {
+              const oppWin = this.resolveWins(opposite(side), 'swap');
+              if (oppWin) result.win = oppWin;
+            }
           }
           break;
         }
@@ -615,6 +636,7 @@
           this.emit('subverted', { side, center: { r: payload.r, c: payload.c }, cells: converted });
           const win = this.resolveWins(side, 'subvert');
           if (win) result.win = win;
+          else this.maybeCampSwap(side);
           break;
         }
         case 'sixwin': {
@@ -627,6 +649,7 @@
             // 可能刚好已经凑够六连 → 立刻判胜
             const win = this.resolveWins(side, 'sixwin');
             if (win) result.win = win;
+          else this.maybeCampSwap(side);
           }
           break;
         }
@@ -753,6 +776,7 @@
       const win = this.resolveWins(side, 'place');
       const result = { ok: true, stone, r, c };
       if (win) result.win = win;
+          else this.maybeCampSwap(side);
       if (!win && this.boardFull()) {
         this.endInDraw();
         result.draw = true;
@@ -823,11 +847,156 @@
       for (const side of order) {
         const win = this.findWin(side);
         if (win) {
+          // Boss 关：玩家的第一条命只拆掉这条连珠，对局继续
+          if (s.boss && side === 'player') {
+            if (s.boss.hp > 1) {
+              this.damageBoss(win, reason);
+              return null;
+            }
+            s.boss.hp = 0;   // 最后一击，血条清零
+          }
           this.finishGame(side, win, reason);
           return win;
         }
       }
       return null;
+    }
+
+    // Boss 掉一条命：把构成这条连珠的棋子全部拆掉，血量 -1
+    damageBoss(win, reason = '') {
+      const s = this.state;
+      if (!s.boss) return [];
+      const removed = [];
+      for (const cell of win.cells) {
+        const stone = this.getStone(cell.r, cell.c);
+        if (!stone) continue;
+        this.setStone(cell.r, cell.c, null);
+        removed.push({ r: cell.r, c: cell.c, owner: stone.owner });
+      }
+      s.boss.hp -= 1;
+      s.stats.captures += removed.length;
+      this.emit('bossDamaged', {
+        hp: s.boss.hp, maxHp: s.boss.maxHp, removed, win, reason, side: 'player'
+      });
+      return removed;
+    }
+
+    /* ---------------- Boss 权能：换营 ---------------- */
+
+    // 某一方所有「权重 ≥ minLength」的连段，key 用来判重（方向 + 起点）
+    collectRuns(side, minLength) {
+      const s = this.state;
+      const runs = new Set();
+      for (let r = 0; r < s.size; r++) {
+        for (let c = 0; c < s.size; c++) {
+          const stone = this.getStone(r, c);
+          if (!stone || stone.owner !== side) continue;
+          for (let d = 0; d < DIRECTIONS.length; d++) {
+            const [dr, dc] = DIRECTIONS[d];
+            const prev = this.getStone(r - dr, c - dc);
+            if (prev && prev.owner === side) continue;
+            let total = 0;
+            let rr = r;
+            let cc = c;
+            while (this.inBounds(rr, cc)) {
+              const item = this.getStone(rr, cc);
+              if (!item || item.owner !== side) break;
+              total += this.stoneWeight(item);
+              rr += dr;
+              cc += dc;
+            }
+            if (total >= minLength) runs.add(d + ':' + r + ',' + c);
+          }
+        }
+      }
+      return runs;
+    }
+
+    // 单条连段的价值：越接近胜利、两端越开，分越高
+    runScore(total, open, target) {
+      const gap = target - total;
+      if (gap <= 0) return 1e8;
+      const table = [0, 4e6, 8e5, 5e4, 1.5e3, 90, 8];
+      const base = table[Math.min(gap, 6)];
+      const mult = open >= 2 ? 1 : open === 1 ? 0.16 : 0.03;
+      return base * mult * (1 + 0.06 * total);
+    }
+
+    // 势力分：只判断「谁占优」，决定换营发不发动
+    positionScore(side) {
+      const s = this.state;
+      const target = s.players[side].winTarget;
+      let score = 0;
+      for (let r = 0; r < s.size; r++) {
+        for (let c = 0; c < s.size; c++) {
+          const stone = this.getStone(r, c);
+          if (!stone || stone.owner !== side) continue;
+          for (const [dr, dc] of DIRECTIONS) {
+            const prev = this.getStone(r - dr, c - dc);
+            if (prev && prev.owner === side) continue;
+            let total = 0;
+            let rr = r;
+            let cc = c;
+            while (this.inBounds(rr, cc)) {
+              const item = this.getStone(rr, cc);
+              if (!item || item.owner !== side) break;
+              total += this.stoneWeight(item);
+              rr += dr;
+              cc += dc;
+            }
+            let open = 0;
+            if (this.inBounds(rr, cc) && !this.getStone(rr, cc)) open += 1;
+            if (this.inBounds(r - dr, c - dc) && !this.getStone(r - dr, c - dc)) open += 1;
+            score += this.runScore(total, open, target);
+          }
+        }
+      }
+      return score;
+    }
+
+    // 玩家第 2、4、6… 次连成五子时考虑换营；墨鸦占优就不换
+    maybeCampSwap(side) {
+      const s = this.state;
+      if (!s.boss || s.status !== 'playing' || side !== 'player') return null;
+      let added = 0;
+      for (const key of this.collectRuns('player', this.rules.campSwapRun)) {
+        if (!s.boss.runs.has(key)) {
+          s.boss.runs.add(key);
+          added += 1;
+        }
+      }
+      if (!added) return null;
+      s.boss.count += added;
+      if (s.boss.count % 2 !== 0) return null;
+      const aiScore = this.positionScore('ai');
+      const playerScore = this.positionScore('player');
+      if (aiScore > playerScore) {
+        s.boss.suppressed += 1;
+        this.emit('campSwapSuppressed', { aiScore, playerScore, count: s.boss.count, side });
+        return null;
+      }
+      return this.swapCamps({ aiScore, playerScore });
+    }
+
+    // 只交换棋盘上的星子归属；手牌、牌库、胜利条件、封禁都跟着人走，不动
+    swapCamps(meta = {}) {
+      const s = this.state;
+      if (s.status !== 'playing') return null;
+      let flipped = 0;
+      for (let r = 0; r < s.size; r++) {
+        for (let c = 0; c < s.size; c++) {
+          const stone = s.cells[r][c];
+          if (!stone || !stone.owner) continue;
+          stone.owner = opposite(stone.owner);
+          flipped += 1;
+        }
+      }
+      // 换完阵营，之前记的「玩家五连」都变成墨鸦的了，清空重新计
+      if (s.boss) s.boss.runs.clear();
+      s.boss.swaps += 1;
+      this.emit('campsSwapped', { flipped, ...meta });
+      const win = this.resolveWins('ai', 'campswap');
+      return { flipped, win, ...meta };
     }
 
     findWin(side) {
