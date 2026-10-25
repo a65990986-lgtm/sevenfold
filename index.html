@@ -80,6 +80,10 @@
           <span class="deck-count">牌库 <b id="playerDeckCount">22</b> · 弃牌 <b id="playerDiscardCount">0</b></span>
           <span class="hand-scroll-hint">↕ 滚动</span>
         </div>
+        <div class="think-box" id="leftThink" hidden>
+          <span class="think-who" id="leftThinkWho">模型</span>
+          <span class="think-text" id="leftThinkText"></span>
+        </div>
         <div class="hand" id="hand" role="list" aria-label="你的手牌"></div>
       </section>
 
@@ -122,6 +126,11 @@
       </section>
 
       <aside class="right-rail" aria-label="对手与记录">
+        <section class="think-box think-box-right" id="rightThink" hidden>
+          <span class="think-who" id="rightThinkWho">模型</span>
+          <span class="think-text" id="rightThinkText"></span>
+        </section>
+
         <section class="opp-deck-panel" id="oppDeckPanel">
           <div class="opp-deck-head">
             <span>墨鸦手牌</span>
@@ -131,6 +140,7 @@
             <i></i><i></i><i></i>
             <span>✦</span>
           </div>
+          <div class="opp-open-hand" id="aiOpenHand" hidden></div>
           <div class="opp-deck-meta">手牌堆 · 牌库 <b id="aiRailDeckCount">22</b></div>
         </section>
 

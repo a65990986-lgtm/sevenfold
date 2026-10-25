@@ -335,6 +335,7 @@
       this.llmConfig = this.loadLLMConfig();
       this.llmRunning = false;
       this.llmError = null;
+      this.llmThought = { player: null, ai: null };
       this._renderRaf = null;
       this._lastBoardSize = 0;
       this.boardEls = [];
@@ -360,6 +361,13 @@
         aiModeLabel: $('#aiModeLabel'),
         aiAvatar: $('#aiAvatar'),
         aiName: $('#aiName'),
+        leftThink: $('#leftThink'),
+        leftThinkWho: $('#leftThinkWho'),
+        leftThinkText: $('#leftThinkText'),
+        rightThink: $('#rightThink'),
+        rightThinkWho: $('#rightThinkWho'),
+        rightThinkText: $('#rightThinkText'),
+        aiOpenHand: $('#aiOpenHand'),
         playerHandLabel: $('#playerHandLabel'),
         soundBtn: $('#soundBtn'),
         modeBadge: $('#modeBadge'),
@@ -1220,8 +1228,39 @@
       });
     }
 
+    // LLM 对战才显示：左边是玩家座位的模型在想什么，右边是对面那个
+    renderLLMThoughts() {
+      const hasLLM = this.getSeatKind('player') === 'llm' || this.getSeatKind('ai') === 'llm';
+      const paint = (box, who, text, side) => {
+        if (!box) return;
+        box.hidden = !hasLLM;
+        if (!hasLLM) return;
+        const t = this.llmThought[side];
+        const kind = this.getSeatKind(side);
+        who.textContent = kind === 'llm' ? this.seatName(side) : (side === 'player' ? '你' : '墨鸦');
+        text.textContent = t ? t.why : (kind === 'llm' ? '还没开口…' : '—');
+      };
+      paint(this.dom.leftThink, this.dom.leftThinkWho, this.dom.leftThinkText, 'player');
+      paint(this.dom.rightThink, this.dom.rightThinkWho, this.dom.rightThinkText, 'ai');
+
+      // 双 LLM 时对面手牌是明牌（都是 AI，没有藏的必要）
+      const open = this.dom.aiOpenHand;
+      if (open) {
+        const aiKind = this.getSeatKind('ai');
+        open.hidden = aiKind !== 'llm';
+        if (aiKind === 'llm') {
+          const hand = this.engine ? this.engine.state.players.ai.hand : [];
+          open.innerHTML = hand.map(entry => {
+            const card = BY_ID[entry.id];
+            return `<span>${card ? card.name : entry.id}</span>`;
+          }).join('') || '<span>空</span>';
+        }
+      }
+    }
+
     renderAll() {
       if (!this.engine) return;
+      this.renderLLMThoughts();
       const state = this.engine.state;
       const aiTurn = state.status === 'playing' && (state.current === 'ai' || this.aiRunning);
       this.dom.app.classList.toggle('is-ai-turn', aiTurn);
@@ -2093,12 +2132,14 @@
         if (this.engine.state.phase === 'draft' && this.engine.state.offer) {
           const draft = await seat.decideDraft();
           if (session !== this.sessionId) return;
+          this.llmThought[side] = { model: cfg.model, why: draft.why || '（选补给没写理由）', kind: 'draft' };
           const res = this.engine.chooseOffer(draft.picks);
           if (!res.ok) throw new window.SevenfoldLLM.LLMError('illegal', res.reason);
           await sleep(420);
         }
         const plan = await seat.decideTurn();
         if (session !== this.sessionId) return;
+        this.llmThought[side] = { model: cfg.model, why: plan.why || '（没写理由）', kind: 'turn' };
         this.addLog(`${label}：${plan.why || '（没写理由）'}`, side);
         for (const card of plan.cards) {
           if (this.engine.state.status !== 'playing') break;

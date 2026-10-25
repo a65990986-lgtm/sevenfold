@@ -145,6 +145,17 @@ async function boot(withKeys = true, fetchImpl = null) {
       w.sevenfold.requestRender();
       return JSON.stringify(w.sevenfold.seatKind) === '{"player":"llm","ai":"llm"}' ? true : JSON.stringify(w.sevenfold.seatKind);
     });
+    t('LLM 对战：左右两块「思考」都显示模型名', () => {
+      const l = w.document.querySelector('#leftThink'), r = w.document.querySelector('#rightThink');
+      if (!l || !r || l.hidden || r.hidden) return '思考块没显示';
+      const lw = w.document.querySelector('#leftThinkWho').textContent;
+      const rw = w.document.querySelector('#rightThinkWho').textContent;
+      return lw === 'deepseek-v4-flash' && rw === 'mimo-v2.6-flash' ? true : `${lw} / ${rw}`;
+    });
+    t('LLM 对战：右边能看到对手的明牌', () => {
+      const el = w.document.querySelector('#aiOpenHand');
+      return el && !el.hidden && el.textContent.trim().length > 0 ? true : '明牌区是空的';
+    });
     t('LLM 对战：不弹人类的补给面板', () => {
       const el = w.document.querySelector('#offerScreen');
       return el && el.hidden === true ? true : '补给面板被打开了';
