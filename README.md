@@ -296,20 +296,27 @@ sevenflod_v1.0.5/
 ## 测试
 
 ```bash
-node tests/engine.test.js
-node tests/ai.test.js
+node tests/engine.test.js   # 23 项规则（含 Boss 关）
+node tests/ai.test.js       # 4 项人机行为
+node tests/llm.test.js      # 12 项 LLM 协议（假 fetch，不需要密钥）
+
+# 界面接线（需要 jsdom，只是开发期工具，不进游戏本体）
+npm i jsdom --cache /tmp/npmcache
+node tools/ui-smoke.js      # 23 项：按钮/弹窗/血条/立绘/LLM 开局/未配置闸门
 ```
 
 当前结果：
 
-- 引擎：**17 通过，0 失败**
+- 引擎：**23 通过，0 失败**
 - AI：**4 通过，0 失败**
+- LLM 协议：**12 通过，0 失败**
+- 界面接线：**23 通过，0 失败**
 
 覆盖：20×20 / 起手 4 / 开局 4 选 2 / 七连与六子胜利、双生星、四方封 / 八方封、挪星步、崩星（含中心）、换影（3 体力）、策反（含中心）、封锁、六子改胜、额外抽牌、储能、蓄力 / 省力、补给不重复、弃牌与落子限制。
 
 ## 旧版本
 
-- `C:\Users\Chastity\Desktop\sevenflod_v1.0.3`：上一版，含右下角术式演示，原样保留。
+- `archive/sevenfold-main-legacy/`：上一版（含右下角术式演示），原样保留。
 - `C:\Users\Chastity\Desktop\sevenflod_v1.0.2`：三栏与教程版，原样保留。
 - `C:\Users\Chastity\Desktop\sevenflod_v1.0.1`：3× 单栏简化版，原样保留。
 - `历史版本/sevenfold-main-旧版/`：13×13 / 七子 / 单牌 BOSS 版快照。
