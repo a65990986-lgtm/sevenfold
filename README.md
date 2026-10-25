@@ -62,16 +62,16 @@ Boss 立绘：`assets/boss-card.png`（模式按钮缩略图）、`assets/boss-f
 
 ### 内置服务商（2026-10 核对）
 
-设置面板里选「服务商」会自动填好地址和模型，**密钥要自己申请**（面板里有链接）：
+设置面板里选「服务商」会自动填好地址和模型，**密钥要自己填**：
 
-| 服务商 | Base URL | 默认模型 | 拿密钥 |
-| --- | --- | --- | --- |
-| DeepSeek（推荐） | `https://api.deepseek.com/v1` | `deepseek-v4-flash` | platform.deepseek.com/api_keys |
-| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-5.3` | bigmodel.cn/usercenter/proj-mgmt/apikeys |
-| 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` | platform.xiaomimimo.com |
-| MiniMax | `https://api.minimaxi.com/v1` | `MiniMax-M3.1-Flash` | platform.minimaxi.com |
-| OpenAI | `https://api.openai.com/v1` | `gpt-5-mini` | platform.openai.com/api-keys |
-| 自定义 | 任何 OpenAI 兼容端点 | — | — |
+| 服务商 | Base URL | 默认模型 |
+| --- | --- | --- |
+| DeepSeek（推荐） | `https://api.deepseek.com/v1` | `deepseek-v4-flash` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-5.3` |
+| 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` |
+| MiniMax | `https://api.minimaxi.com/v1` | `MiniMax-M3.1-Flash` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-5-mini` |
+| 自定义 | 任何 OpenAI 兼容端点 | — |
 
 > 模型名会变：`deepseek-chat` 已于 2026-07-24 停用（改叫 `deepseek-v4-flash` / `deepseek-v4-pro`），
 > 小米 MiMo V2.5 已于 2026-10-21 退役（改用 `mimo-v2.6-flash` / `mimo-v2.6-pro`）。

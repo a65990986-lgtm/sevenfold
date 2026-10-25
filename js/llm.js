@@ -17,35 +17,30 @@
     {
       id: 'deepseek', name: 'DeepSeek', recommended: true,
       baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash',
-      keyUrl: 'https://platform.deepseek.com/api_keys',
       cors: true,
       note: '推荐：便宜、中文好、回 CORS。更强可以用 deepseek-v4-pro'
     },
     {
       id: 'zhipu', name: '智谱 GLM',
       baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.3',
-      keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys',
       cors: false,
       note: '不返回 CORS 头，浏览器直连会被拦；GLM-5.3 强制思考，会慢一些'
     },
     {
       id: 'xiaomi', name: '小米 MiMo',
       baseURL: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash',
-      keyUrl: 'https://platform.xiaomimimo.com/#/console/api-keys',
       cors: true,
       note: '回 CORS，可直连。更强可以用 mimo-v2.6-pro；V2.5 已停用'
     },
     {
       id: 'minimax', name: 'MiniMax',
       baseURL: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3.1-Flash',
-      keyUrl: 'https://platform.minimaxi.com/',
       cors: true,
       note: '国内站；国际站换成 api.minimax.io/v1'
     },
     {
       id: 'openai', name: 'OpenAI',
       baseURL: 'https://api.openai.com/v1', model: 'gpt-5-mini',
-      keyUrl: 'https://platform.openai.com/api-keys',
       cors: true,
       note: '模型名随账号/地区变化，点「测试连接」可列出可用模型'
     },

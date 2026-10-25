@@ -2168,7 +2168,6 @@
           <label class="llm-field"><span>API Key</span>
             <input data-key="${side}" type="password" value="${escapeHtml(cfg.apiKey || '')}" placeholder="sk-..." spellcheck="false" autocomplete="off">
           </label>
-          <p class="llm-keyhint">没有密钥？<a data-keyurl="${side}" target="_blank" rel="noopener">去 ${escapeHtml((LLM.PRESETS.find(p => p.id === (cfg.preset || 'deepseek')) || {}).name || '服务商')} 申请</a></p>
           <label class="llm-check"><input type="checkbox" data-thinking="${side}" ${cfg.thinking ? 'checked' : ''}> 开启思考模式（更慢，更容易被截断）</label>
           <div class="llm-seat-actions">
             <button type="button" data-test="${side}">测试连接</button>
@@ -2206,15 +2205,6 @@
         const side = select.dataset.preset;
         const cfg = this.llmConfig[side];
         if (cfg && cfg.preset) select.value = cfg.preset;
-        const syncHint = () => {
-          const preset = LLM.PRESETS.find(p => p.id === select.value);
-          const link = body.querySelector(`[data-keyurl="${side}"]`);
-          if (link && preset) {
-            link.href = preset.keyUrl || '#';
-            link.textContent = `去 ${preset.name} 申请`;
-          }
-        };
-        syncHint();
         select.addEventListener('change', () => {
           const preset = LLM.PRESETS.find(p => p.id === select.value);
           if (!preset) return;
@@ -2222,7 +2212,6 @@
           const model = body.querySelector(`[data-model="${side}"]`);
           if (base && preset.baseURL) base.value = preset.baseURL;
           if (model && preset.model) model.value = preset.model;
-          syncHint();
         });
       });
       body.querySelectorAll('[data-test]').forEach(btn => {
