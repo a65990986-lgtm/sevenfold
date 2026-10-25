@@ -1,0 +1,9 @@
+# 系统垃圾文件
+.DS_Store
+
+# 历史版本里的大包：这三个 14MB 的 zip 是「带素材的整包快照」，
+# 内容是重复的（其中 sevenflod_v1.0.6.zip 甚至就是当前版本自己），
+# 不放进 git；文件仍留在本地。小于 2MB 的历史包保留进仓库。
+历史版本/sevenflod_v1.0 4.zip
+历史版本/sevenflod_v1.05.zip
+历史版本/sevenflod_v1.0.6.zip
